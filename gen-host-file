@@ -28,4 +28,4 @@ fn_dedupe () {
     | fn_fmt
 }
 
-cat /etc/hosts.base "$(fn_dedupe)"
+cat /etc/hosts.base <(fn_dedupe)
