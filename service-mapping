@@ -1,3 +1,4 @@
 api-service-info-datasource	info-datasource.tabinternal.com.au
 api-service-application	application-service.tabinternal.com.au
 api-service-gateway	gateway-service.tabinternal.com.au
+api-service-promotions	promotions-service.tabinternal.com.au

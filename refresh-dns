@@ -1,0 +1,11 @@
+#!/bin/bash
+
+mkdir -p /etc/dns
+
+join -12 -21 \
+    <(sort /var/bocker/ps_*/var/tmp/instance-tag) \
+    <(sort env-mapping) \
+    | sort -k3,3 \
+    | join -13 -21 - <(sort service-mapping) \
+    | awk '{print $4, $5 ? $5"-"$6 : $6}' \
+    | tee /etc/dns/bocker && pkill -SIGHUP dnsmasq

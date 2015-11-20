@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for ps in "$@"; do
+    ip link del veth0_"$ps"
+    ip netns del netns_"$ps"
+    ./bocker rm "$ps"
+done
