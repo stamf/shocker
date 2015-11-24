@@ -1,14 +1,59 @@
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail; shopt -s nullglob
 btrfs_path='/var/bocker' && cgroups='cpu,cpuacct,memory' && repo='../.bocker-repo';
+#shellcheck disable=SC2015
 [[ $# -gt 0 ]] && while [ "${1:0:2}" == '--' ]; do OPTION=${1:2}; [[ $OPTION =~ = ]] && declare "BOCKER_${OPTION/=*/}=${OPTION/*=/}" || declare "BOCKER_${OPTION}=x"; shift; done
 
-function id_to_ip() {
-    :
+function ip_to_int() { #Transform ipv4 address into int
+    local IFS='[./]'
+    #shellcheck disable=SC2086
+    set -- $1
+    echo $(($1 * 256**3 + $2 * 256**2 + $3 * 256**1 + $4))
 }
 
-function id_to_mac() {
-    :
+function int_to_ip() { #Transform int into ipv4 address
+    printf "%d.%d.%d.%d" \
+        $((($1 & 256**4-1) / 256**3)) \
+        $((($1 & 256**3-1) / 256**2)) \
+        $((($1 & 256**2-1) / 256**1)) \
+        $(( $1 & 256**1-1))
+}
+
+function int_to_mac() { #Transform int into mac address
+    printf "02:42:%02x:%02x:%02x:%02x" \
+        $((($1 & 256**4-1) / 256**3)) \
+        $((($1 & 256**3-1) / 256**2)) \
+        $((($1 & 256**2-1) / 256**1)) \
+        $(( $1 & 256**1-1))
+}
+
+function addr_to_network() { #Transforms ip/mask into an int representing the network
+    local IFS=/
+    #shellcheck disable=SC2086
+    set -- $1
+    mask=$(((2**$2-1) * 2**(32-$2)))
+    addr=$(ip_to_int "$1")
+    echo $((addr & mask))
+}
+
+function addr_to_hostid() { #Transforms ip/mask into an int representing the host
+    local IFS=/
+    #shellcheck disable=SC2086
+    set -- $1
+    mask=$((2**(32-$2)-1))
+    addr=$(ip_to_int "$1")
+    echo $((addr & mask))
+}
+
+#shellcheck disable=SC1091
+source ./network.conf
+NETMASK=${NETWORK##*/}
+NHOSTS=$((2**(32-NETMASK)))
+
+NETWORK=$(addr_to_network "$NETWORK")
+
+function gen_uuid() {
+    shuf -i 2-$NHOSTS -n 1
 }
 
 function bocker_check() {
@@ -70,6 +115,7 @@ function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <en
     uuid="ps_$(shuf -i 42002-42254 -n 1)"
     [[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
     [[ "$(bocker_check "$uuid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& bocker_run "$@" && return
+    #shellcheck disable=SC2001
     ip="$(echo "${uuid: -3}" | sed 's/^0*//g')" && mac="${uuid: -3:1}:${uuid: -2}"
     ip link add dev veth0_"$uuid" type veth peer name veth1_"$uuid"
     ip link set dev veth0_"$uuid" up
@@ -117,7 +163,8 @@ function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <comman
     uuid="ps_$(shuf -i 42002-42254 -n 1)"
     [[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
     [[ "$(bocker_check "$uuid")" == 0 ]] && echo "UUID conflict, retrying..." && bocker_run "$@" && return
-    cmd="${@:2}" && ip="$(echo "${uuid: -3}" | sed 's/0//g')" && mac="${uuid: -3:1}:${uuid: -2}"
+    #shellcheck disable=SC2001
+    cmd="${*:2}" && ip="$(echo "${uuid: -3}" | sed 's/0//g')" && mac="${uuid: -3:1}:${uuid: -2}"
     ip link add dev veth0_"$uuid" type veth peer name veth1_"$uuid"
     ip link set dev veth0_"$uuid" up
     ip link set veth0_"$uuid" master bridge0
@@ -150,7 +197,7 @@ function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <comman
 
 function bocker_exec() { #HELP Execute a command in a running container:\nBOCKER exec <container_id> <command>
     [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-    cid="$(ps ao ppid,pid | awk -v ppid=$(pgrep -f "unshare.*$1") '$1 == ppid {print $2}')"
+    cid="$(ps ao ppid,pid | awk -v ppid="$(pgrep -f "unshare.*$1")" '$1 == ppid {print $2}')"
     [[ ! "$cid" =~ ^\ *[0-9]+$ ]] && echo "Container '$1' exists but is not running" && exit 1
     nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
 }
