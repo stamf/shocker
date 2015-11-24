@@ -47,8 +47,8 @@ function addr_to_hostid() { #Transforms ip/mask into an int representing the hos
 
 #shellcheck disable=SC1091
 source ./network.conf
-NETMASK=${NETWORK##*/}
-NHOSTS=$((2**(32-NETMASK)))
+MASK=${NETWORK##*/}
+NHOSTS=$((2**(32-MASK)))
 NETWORK=$(addr_to_network "$NETWORK")
 GATEWAY=$((NETWORK + 1))
 
@@ -128,7 +128,7 @@ function bocker_pre_run() {
     ip link set veth1_"$cntid" netns netns_"$cntid"
     ip netns exec netns_"$cntid" ip link set dev lo up
     ip netns exec netns_"$cntid" ip link set veth1_"$cntid" address "$mac"
-    ip netns exec netns_"$cntid" ip addr add "$ip/$NETMASK" dev veth1_"$cntid"
+    ip netns exec netns_"$cntid" ip addr add "$ip/$MASK" dev veth1_"$cntid"
     ip netns exec netns_"$cntid" ip link set dev veth1_"$cntid" up
     ip netns exec netns_"$cntid" ip route add default via "$gwip"
     btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$cntid" > /dev/null
@@ -201,6 +201,20 @@ function bocker_logs() { #HELP View logs from a container:\nBOCKER logs <contain
     cat "$btrfs_path/$1/$1.log"
 }
 
+function bocker_route() { #HELP Ensure outgoing route exists for containers:\nBOCKER route <network-device>
+    ip link add "$BRIDGE_DEV" type bridge || true
+    ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
+    ip link set "$BRIDGE_DEV" up
+
+    iptables -t nat -A POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" -o "$1" -j MASQUERADE
+}
+
+function bocker_export() { #HELP Expose containers port through host:\nBOCKER export <container_id> <port> <host_port>
+    iptables -t nat -A PREROUTING -p tcp -m tcp --dport "$3" -j DNAT \
+        --to-destination "$(cat "$btrfs_path/$1/host-ip-addr"):$2" \
+        -m comment --comment "host:$3 -> $1:$2"
+}
+
 function bocker_commit() { #HELP Commit a container to an image:\nBOCKER commit <container_id> <image_id>
     [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
     [[ "$(bocker_check "$2")" == 1 ]] && echo "No image named '$2' exists" && exit 1
@@ -219,6 +233,6 @@ function bocker_help() { #HELP Display this message:\nBOCKER help
 
 [[ -z "${1-}" ]] && bocker_help "$0"
 case $1 in
-    pull|init|rm|images|ps|run|spawn|exec|kill|name|logs|commit) bocker_"$1" "${@:2}" ;;
+    pull|init|rm|images|ps|run|spawn|exec|kill|name|logs|route|export|commit) bocker_"$1" "${@:2}" ;;
     *) bocker_help "$0" ;;
 esac
