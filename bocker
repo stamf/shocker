@@ -117,7 +117,6 @@ function bocker_pre_run() {
     [[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
     [[ "$(bocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& bocker_run "$@" && return
     #TODO uuid conflict could result in infinite loop if all uuids are used
-    #shellcheck disable=SC2001
     ip="$(int_to_ip $((NETWORK + uuid)))"
     mac="$(int_to_mac "$uuid")"
     gwip="$(int_to_ip "$GATEWAY")"
@@ -145,6 +144,16 @@ function bocker_pre_run() {
     echo "$cntid"
 }
 
+function bocker_execute() {
+    cntid="$1"
+    shift;
+    cgexec -g "$cgroups:$cntid" \
+        ip netns exec netns_"$cntid" \
+        unshare -fmuip --mount-proc \
+        chroot "$btrfs_path/$cntid" \
+        /bin/sh -c "source /root/init; $*"
+}
+
 function bocker_post_run() {
     ip link del dev veth0_"$1"
     ip netns del netns_"$1"
@@ -162,15 +171,8 @@ function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <en
     git archive master | tar -x --strip-components=2 -C "$btrfs_path/$cntid/etc/service-config" "$service/$2"
     popd >/dev/null
 
-    echo -e "$(date +%s.%N)\t$2\t$service\t$ip" > "$instance_tag"
-
-    cgexec -g "$cgroups:$cntid" \
-        ip netns exec netns_"$cntid" \
-        unshare -fmuip --mount-proc \
-        chroot "$btrfs_path/$cntid" \
-        /bin/sh -c "source /root/init; $service -c /etc/service-config/$4" 2>&1 \
-     | tee "$btrfs_path/$cntid/${cntid}.stdout" || true
-
+    echo -e "$(date +%s.%N)\t$2\t$service\tip" > "$instance_tag"
+    bocker_execute "$cntid" "$service" -c "/etc/service-config/$4" || true
     rm -f "$instance_tag"
 
     bocker_post_run "$cntid"
@@ -178,15 +180,7 @@ function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <en
 
 function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <command>
     cntid=$(bocker_pre_run "$1")
-    #shellcheck disable=SC2001
-    cmd="${*:2}"
-
-    cgexec -g "$cgroups:$cntid" \
-        ip netns exec netns_"$cntid" \
-        unshare -fmuip --mount-proc \
-        chroot "$btrfs_path/$cntid" \
-        /bin/sh -c "source /root/init; $cmd" || true #2>&1 | tee "$btrfs_path/$cntid/$cntid.log" || true
-
+    bocker_execute "$cntid" "${@:2}" || true
     bocker_post_run "$cntid"
 }
 
