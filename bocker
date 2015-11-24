@@ -103,11 +103,33 @@ function bocker_images() { #HELP List images:\nBOCKER images
     done
 }
 
+function get_state() {
+    [[ ! -d "$btrfs_path/$1" ]] && echo missing && return
+    [[ -d "/sys/fs/cgroup/cpuacct/$1" ]] && cgdef=1 || cgdef=0
+    grep -q . "/sys/fs/cgroup/cpuacct/$1/tasks" 2>/dev/null && procs=1 || procs=0
+    ip netns show | grep -q "netns_$1" 2>/dev/null && netns=1 || netns=0
+    ip link show | grep -q "veth0_$1" 2>/dev/null && veth=1 || veth=0
+
+    state=crashed
+    [[ $((cgdef & procs & netns & veth)) -eq 1 ]] && state=running
+    [[ $((cgdef | procs | netns | veth)) -eq 0 ]] && state=stopped
+
+    echo $state
+}
+
 function bocker_ps() { #HELP List containers:\nBOCKER ps
-    echo -e "CONTAINER_ID\t\tCOMMAND"
-    for ps in "$btrfs_path"/ps_*; do
+    echo -e "CONTAINER_ID\t\tSTATE\t\tCOMMAND"
+    #shellcheck disable=SC2012
+    ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
         ps=$(basename "$ps")
-        echo -e "$ps\t\t$(cat "$btrfs_path/$ps/$ps.cmd")"
+        state=$(get_state "$ps")
+
+        case $state in
+            running) state="\x1b[1;32m$state\x1b[0m";;
+            crashed) state="\x1b[1;31m$state\x1b[0m";;
+        esac
+
+        echo -e "$ps\t\t$state\t\t$(cat "$btrfs_path/$ps/$ps.cmd")"
     done
 }
 
@@ -152,12 +174,13 @@ function bocker_execute() {
         ip netns exec netns_"$cntid" \
         unshare -fmuip --mount-proc \
         chroot "$btrfs_path/$cntid" \
-        /bin/sh -c "source /root/init; $*"
+        /bin/sh -c "source /root/init; $*" || true
 }
 
 function bocker_post_run() {
     ip link del dev veth0_"$1"
     ip netns del netns_"$1"
+    cgdelete -g "$cgroups:/$1" &> /dev/null || true
 }
 
 function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <env> <nix-image> <conf-file>
@@ -194,6 +217,34 @@ function bocker_exec() { #HELP Execute a command in a running container:\nBOCKER
 
 function bocker_kill() { #HELP Kill a running container:\nBOCKER kill <container_id> [<signal>]
     bocker_exec "$1" /bin/kill -s "${2:-SIGTERM}" -- -1
+}
+
+function bocker_stop() { #HELP Stop a running container:\nBOCKER stop <container_id>
+    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+
+    state=$(get_state "$1")
+    case $state in
+        stopped) echo "Container '$1' is already stopped" ;;
+        crashed) echo -e "Container '$1' is in a crashed state, please use the \x1b[1mcleanup\x1b[0m command" ;;
+        missing) echo "Container '$1' does not exist" ;;
+    esac
+
+    sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
+        kill -SIGTERM -- "$proc" 2>/dev/null || true;
+    done
+}
+
+function bocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth devices:\nBOCKER cleanup
+    #shellcheck disable=SC2012
+    ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
+        ps=$(basename "$ps")
+        if [[ "$(get_state "$ps")" == "crashed" ]]; then
+            ip link del "veth0_$ps" &>/dev/null || true
+            ip netns del "netns_$ps" &>/dev/null || true
+            cgdelete -g "$cgroups:/$ps" &>/dev/null || true
+            echo "Cleaned '$ps'"
+        fi
+    done
 }
 
 function bocker_logs() { #HELP View logs from a container:\nBOCKER logs <container_id>
@@ -233,6 +284,6 @@ function bocker_help() { #HELP Display this message:\nBOCKER help
 
 [[ -z "${1-}" ]] && bocker_help "$0"
 case $1 in
-    pull|init|rm|images|ps|run|spawn|exec|kill|name|logs|route|export|commit) bocker_"$1" "${@:2}" ;;
+    pull|init|rm|images|ps|run|spawn|exec|kill|cleanup|stop|name|logs|route|export|commit) bocker_"$1" "${@:2}" ;;
     *) bocker_help "$0" ;;
 esac
