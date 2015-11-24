@@ -49,8 +49,8 @@ function addr_to_hostid() { #Transforms ip/mask into an int representing the hos
 source ./network.conf
 NETMASK=${NETWORK##*/}
 NHOSTS=$((2**(32-NETMASK)))
-
 NETWORK=$(addr_to_network "$NETWORK")
+GATEWAY=$((NETWORK + 1))
 
 function gen_uuid() {
     shuf -i 2-$NHOSTS -n 1
@@ -111,88 +111,83 @@ function bocker_ps() { #HELP List containers:\nBOCKER ps
     done
 }
 
-function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <env> <nix-image> <conf-file>
-    uuid="ps_$(shuf -i 42002-42254 -n 1)"
+function bocker_pre_run() {
+    uuid=$(gen_uuid)
+    cntid="ps_$uuid"
     [[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
-    [[ "$(bocker_check "$uuid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& bocker_run "$@" && return
+    [[ "$(bocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& bocker_run "$@" && return
+    #TODO uuid conflict could result in infinite loop if all uuids are used
     #shellcheck disable=SC2001
-    ip="$(echo "${uuid: -3}" | sed 's/^0*//g')" && mac="${uuid: -3:1}:${uuid: -2}"
-    ip link add dev veth0_"$uuid" type veth peer name veth1_"$uuid"
-    ip link set dev veth0_"$uuid" up
-    ip link set veth0_"$uuid" master bridge0
-    ip netns add netns_"$uuid"
-    ip link set veth1_"$uuid" netns netns_"$uuid"
-    ip netns exec netns_"$uuid" ip link set dev lo up
-    ip netns exec netns_"$uuid" ip link set veth1_"$uuid" address 02:42:ac:11:00"$mac"
-    ip netns exec netns_"$uuid" ip addr add 11.0.0."$ip"/24 dev veth1_"$uuid"
-    ip netns exec netns_"$uuid" ip link set dev veth1_"$uuid" up
-    ip netns exec netns_"$uuid" ip route add default via 11.0.0.1
-    btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$uuid" > /dev/null
+    ip="$(int_to_ip $((NETWORK + uuid)))"
+    mac="$(int_to_mac "$uuid")"
+    gwip="$(int_to_ip "$GATEWAY")"
+
+    ip link add dev veth0_"$cntid" type veth peer name veth1_"$cntid"
+    ip link set dev veth0_"$cntid" up
+    ip link set veth0_"$cntid" master "$BRIDGE_DEV"
+    ip netns add netns_"$cntid"
+    ip link set veth1_"$cntid" netns netns_"$cntid"
+    ip netns exec netns_"$cntid" ip link set dev lo up
+    ip netns exec netns_"$cntid" ip link set veth1_"$cntid" address "$mac"
+    ip netns exec netns_"$cntid" ip addr add "$ip/$NETMASK" dev veth1_"$cntid"
+    ip netns exec netns_"$cntid" ip link set dev veth1_"$cntid" up
+    ip netns exec netns_"$cntid" ip route add default via "$gwip"
+    btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$cntid" > /dev/null
+    mount -o bind /dev/pts "$btrfs_path/$cntid/dev/pts"
+    echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
+    echo "$0 $*" > "$btrfs_path/$cntid/${cntid}.cmd"
+    cp init "$btrfs_path/$cntid/root/init" || true
+    cgcreate -g "$cgroups:/$cntid"
+
+    : "${BOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$BOCKER_CPU_SHARE" "$cntid"
+    : "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1000000))" "$cntid"
+
+    echo "$cntid"
+}
+
+function bocker_post_run() {
+    ip link del dev veth0_"$1"
+    ip netns del netns_"$1"
+}
+
+function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <env> <nix-image> <conf-file>
+    cntid=$(bocker_pre_run "$1")
 
     service="$3"
+    instance_tag="$btrfs_path/$cntid/var/tmp/instance-tag"
 
-    tar xzf "$repo/${3}.tgz" -C "$btrfs_path/$uuid"
+    tar xzf "$repo/${service}.tgz" -C "$btrfs_path/$cntid"
     pushd "$repo/api-config-files" >/dev/null || exit
-    mkdir -p "$btrfs_path/$uuid/etc/service-config"
-    git archive master | tar -x --strip-components=2 -C "$btrfs_path/$uuid/etc/service-config" "$service/$2"
+    mkdir -p "$btrfs_path/$cntid/etc/service-config"
+    git archive master | tar -x --strip-components=2 -C "$btrfs_path/$cntid/etc/service-config" "$service/$2"
     popd >/dev/null
 
-    echo nameserver 11.0.0.1 > "$btrfs_path/$uuid/etc/resolv.conf"
-    echo spawn "$@" > "$btrfs_path/$uuid/$uuid.cmd"
-    echo -e "$(date +%s.%N)\t$2\t$3\t11.0.0.$ip" > "$btrfs_path/$uuid/var/tmp/instance-tag"
-    cp init "$btrfs_path/$uuid/root/init"
+    echo -e "$(date +%s.%N)\t$2\t$service\t$ip" > "$instance_tag"
 
-    cgcreate -g "$cgroups:/$uuid"
-    : "${BOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$BOCKER_CPU_SHARE" "$uuid"
-    : "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1000000))" "$uuid"
-
-    mount -o bind /dev/pts "$btrfs_path/$uuid/dev/pts"
-    cgexec -g "$cgroups:$uuid" \
-        ip netns exec netns_"$uuid" \
+    cgexec -g "$cgroups:$cntid" \
+        ip netns exec netns_"$cntid" \
         unshare -fmuip --mount-proc \
-        chroot "$btrfs_path/$uuid" \
-        /bin/sh -c "source /root/init && $service -c /etc/service-config/$4" 2>&1 \
-     | tee "$btrfs_path/$uuid/$uuid.stdout" || true
+        chroot "$btrfs_path/$cntid" \
+        /bin/sh -c "source /root/init; $service -c /etc/service-config/$4" 2>&1 \
+     | tee "$btrfs_path/$cntid/${cntid}.stdout" || true
 
-    rm -f "$btrfs_path/$uuid/var/tmp/instance-tag"
-    ip link del dev veth0_"$uuid"
-    ip netns del netns_"$uuid"
+    rm -f "$instance_tag"
+
+    bocker_post_run "$cntid"
 }
 
 function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <command>
-    uuid="ps_$(shuf -i 42002-42254 -n 1)"
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
-    [[ "$(bocker_check "$uuid")" == 0 ]] && echo "UUID conflict, retrying..." && bocker_run "$@" && return
+    cntid=$(bocker_pre_run "$1")
     #shellcheck disable=SC2001
-    cmd="${*:2}" && ip="$(echo "${uuid: -3}" | sed 's/0//g')" && mac="${uuid: -3:1}:${uuid: -2}"
-    ip link add dev veth0_"$uuid" type veth peer name veth1_"$uuid"
-    ip link set dev veth0_"$uuid" up
-    ip link set veth0_"$uuid" master bridge0
-    ip netns add netns_"$uuid"
-    ip link set veth1_"$uuid" netns netns_"$uuid"
-    ip netns exec netns_"$uuid" ip link set dev lo up
-    ip netns exec netns_"$uuid" ip link set veth1_"$uuid" address 02:42:ac:11:00"$mac"
-    ip netns exec netns_"$uuid" ip addr add 11.0.0."$ip"/24 dev veth1_"$uuid"
-    ip netns exec netns_"$uuid" ip link set dev veth1_"$uuid" up
-    ip netns exec netns_"$uuid" ip route add default via 11.0.0.1
-    btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$uuid" > /dev/null
+    cmd="${*:2}"
 
-    echo nameserver 11.0.0.1 > "$btrfs_path/$uuid"/etc/resolv.conf
-    echo "$cmd" > "$btrfs_path/$uuid/$uuid.cmd"
-    cp init "$btrfs_path/$uuid/root/init"
-
-    cgcreate -g "$cgroups:/$uuid"
-    : "${BOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$BOCKER_CPU_SHARE" "$uuid"
-    : "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1000000))" "$uuid"
-
-    mount -o bind /dev/pts "$btrfs_path/$uuid/dev/pts"
-    cgexec -g "$cgroups:$uuid" \
-        ip netns exec netns_"$uuid" \
+    cgexec -g "$cgroups:$cntid" \
+        ip netns exec netns_"$cntid" \
         unshare -fmuip --mount-proc \
-        chroot "$btrfs_path/$uuid" \
-        /bin/sh -c "source /root/init && $cmd" || true #2>&1 | tee "$btrfs_path/$uuid/$uuid.log" || true
-    ip link del dev veth0_"$uuid"
-    ip netns del netns_"$uuid"
+        chroot "$btrfs_path/$cntid" \
+        /bin/sh -c "source /root/init; $cmd" || true #2>&1 | tee "$btrfs_path/$cntid/$cntid.log" || true
+
+    bocker_post_run "$cntid"
 }
 
 function bocker_exec() { #HELP Execute a command in a running container:\nBOCKER exec <container_id> <command>
