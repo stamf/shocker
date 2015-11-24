@@ -135,6 +135,7 @@ function bocker_pre_run() {
     mount -o bind /dev/pts "$btrfs_path/$cntid/dev/pts"
     echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
     echo "$0 $*" > "$btrfs_path/$cntid/${cntid}.cmd"
+    echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
     cp init "$btrfs_path/$cntid/root/init" || true
     cgcreate -g "$cgroups:/$cntid"
 
@@ -171,7 +172,7 @@ function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <en
     git archive master | tar -x --strip-components=2 -C "$btrfs_path/$cntid/etc/service-config" "$service/$2"
     popd >/dev/null
 
-    echo -e "$(date +%s.%N)\t$2\t$service\tip" > "$instance_tag"
+    echo -e "$(date +%s.%N)\t$2\t$service\t$(cat "$btrfs_path/$cntid/host-ip-addr")" > "$instance_tag"
     bocker_execute "$cntid" "$service" -c "/etc/service-config/$4" || true
     rm -f "$instance_tag"
 
