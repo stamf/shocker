@@ -126,6 +126,38 @@ $ cat /sys/fs/cgroup/memory/ps_42188/memory.limit_in_bytes
 * Data Volumes
 * Port Forwarding
 
+## FAQ
+### Error: btrfs: command not found
+This means `btrfs` is not available on your machine. Luckily many package
+managers offer a way to install this in a single command:
+- `Debian/Ubuntu`: `sudo apt-get install btrfs-tools`
+
+### Error: x is not a btrfs filesystem
+That means we don't have a `btrfs` filesystem mounted, so let's create one!
+From a file! Because that's easier than doing partitions!
+```sh
+# create a new filesystem from an empty file
+$ dd if=/dev/zero of=btrfs-hdd.img bs=1G count=2
+$ sudo losetup loop0 btrfs-hdd.img
+$ sudo mkfs.btrfs /dev/loop0
+
+# create `/var/bocker` if it does not exist
+$ [ -d '/var/bocker' ] || sudo mkdir -p '/var/bocker'
+
+# open file as block device and mount
+$ sudo mount '/dev/loop0' '/var/bocker'
+$ sudo btrfs filesystem show '/var/bocker'
+```
+
+### Error: /tmp does not exist
+Not every distro adheres to the Linux
+[Filesystem Hierarchy Standard](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard),
+but no need to sweat about it, we can create our own:
+```sh
+$ sudo mkdir /tmp
+$ sudo chmod 1777 /tmp   # open to everyone + set sticky bit
+```
+
 ## License
 
 Copyright (C) 2015 Peter Wilmott

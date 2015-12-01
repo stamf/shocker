@@ -4,6 +4,17 @@ btrfs_path='/var/bocker' && cgroups='cpu,cpuacct,memory' && repo='../.bocker-rep
 #shellcheck disable=SC2015
 [[ $# -gt 0 ]] && while [ "${1:0:2}" == '--' ]; do OPTION=${1:2}; [[ $OPTION =~ = ]] && declare "BOCKER_${OPTION/=*/}=${OPTION/*=/}" || declare "BOCKER_${OPTION}=x"; shift; done
 
+
+# check if btrfs is mounted and available
+set +e
+[ -d "$btrfs_path" ] || mkdir -p "$btrfs_path"
+sudo btrfs filesystem show "$btrfs_path" > /dev/null
+[ "$?" -ne 0 ] && {
+  printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path"
+  exit 1
+}
+set -e
+
 function ip_to_int() { #Transform ipv4 address into int
     local IFS='[./]'
     #shellcheck disable=SC2086
@@ -74,18 +85,51 @@ function bocker_init() { #HELP Create an image from a directory:\nBOCKER init <d
 }
 
 function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name> <tag>
-    token="$(curl -sL -o /dev/null -D- -H 'X-Docker-Token: true' "https://index.docker.io/v1/repositories/$1/images" | tr -d '\r' | awk -F ': *' '$1 == "X-Docker-Token" { print $2 }')"
+    [ -d '/tmp' ] || { printf 'Error: /tmp does not exist'; exit 1; }
+
+    fn_get_registry () {
+      curl -sL -o /dev/null -D- \
+        -H 'X-Docker-Token: true' \
+        "https://index.docker.io/v1/repositories/$1/images" \
+        | tr -d '\r' \
+        | awk -F ': *' '$1 == "X-Docker-Token" { print $2 }'
+    }
+
+    fn_get_id () {
+      curl -sL -H "Authorization: Token $token" \
+        "$registry/repositories/$1/tags/$2" \
+        | sed 's/"//g'
+    }
+
+    fn_get_ancestry () {
+      curl -sL \
+        -H "Authorization: Token $token" \
+        "$registry/images/$id/ancestry"
+    }
+
+    token="$(fn_get_registry "$1")"
     registry='https://registry-1.docker.io/v1'
-    id="$(curl -sL -H "Authorization: Token $token" "$registry/repositories/$1/tags/$2" | sed 's/"//g')"
-    [[ "${#id}" -ne 64 ]] && echo "No image named '$1:$2' exists" && exit 1
-    ancestry="$(curl -sL -H "Authorization: Token $token" "$registry/images/$id/ancestry")"
-    IFS=',' && ancestry=(${ancestry//[\[\] \"]/}) && IFS=' \n\t'; tmp_uuid="$(uuidgen)" && mkdir /tmp/"$tmp_uuid"
+    id="$(fn_get_id "$1" "$2")"
+    [ "${#id}" -ne 64 ] && echo "No image named '$1:$2' exists" && exit 1
+
+    ancestry="$(fn_get_ancestry)"
+    local IFS=','
+    local ancestry=(${ancestry//[\[\] \"]/})
+
+    local IFS=' \n\t'
+    local tmp_uuid="img_$RANDOM"
+    mkdir /tmp/"$tmp_uuid"
     for id in "${ancestry[@]}"; do
-        curl -#L -H "Authorization: Token $token" "$registry/images/$id/layer" -o /tmp/"$tmp_uuid"/layer.tar
-        tar xf /tmp/"$tmp_uuid"/layer.tar -C /tmp/"$tmp_uuid" && rm /tmp/"$tmp_uuid"/layer.tar
+        curl -#L -H "Authorization: Token $token" \
+          "$registry/images/$id/layer" \
+          -o /tmp/"$tmp_uuid"/layer.tar
+        tar xf /tmp/"$tmp_uuid"/layer.tar -C /tmp/"$tmp_uuid" 
+        rm /tmp/"$tmp_uuid"/layer.tar
     done
+
     echo "$1:$2" > /tmp/"$tmp_uuid"/img.source
-    bocker_init /tmp/"$tmp_uuid" && rm -rf /tmp/"$tmp_uuid"
+    bocker_init /tmp/"$tmp_uuid"
+    rm -rf /tmp/"$tmp_uuid"
 }
 
 function bocker_rm() { #HELP Delete an image or container:\nBOCKER rm <image_id or container_id>
