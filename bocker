@@ -46,7 +46,10 @@ function addr_to_hostid() { #Transforms ip/mask into an int representing the hos
 }
 
 #shellcheck disable=SC1091
-source ./network.conf
+source ./network.conf 2>/dev/null || true
+NETWORK=${NETWORK:-10.0.0.0/24}
+BRIDGE_DEV=${BRIDGE_DEV:-bridge0}
+
 MASK=${NETWORK##*/}
 NHOSTS=$((2**(32-MASK)))
 NETWORK=$(addr_to_network "$NETWORK")
@@ -120,7 +123,7 @@ function get_state() {
 function bocker_ps() { #HELP List containers:\nBOCKER ps
     echo -e "CONTAINER_ID\t\tSTATE\t\tCOMMAND"
     #shellcheck disable=SC2012
-    ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
+    ls -rtd "$btrfs_path"/ps_* 2>/dev/null | while read -r ps; do
         ps=$(basename "$ps")
         state=$(get_state "$ps")
 
@@ -143,31 +146,35 @@ function bocker_pre_run() {
     mac="$(int_to_mac "$uuid")"
     gwip="$(int_to_ip "$GATEWAY")"
 
+    ip netns add netns_"$cntid"
     ip link add dev veth0_"$cntid" type veth peer name veth1_"$cntid"
     ip link set dev veth0_"$cntid" up
     ip link set veth0_"$cntid" master "$BRIDGE_DEV"
-    ip netns add netns_"$cntid"
     ip link set veth1_"$cntid" netns netns_"$cntid"
     ip netns exec netns_"$cntid" ip link set dev lo up
     ip netns exec netns_"$cntid" ip link set veth1_"$cntid" address "$mac"
     ip netns exec netns_"$cntid" ip addr add "$ip/$MASK" dev veth1_"$cntid"
     ip netns exec netns_"$cntid" ip link set dev veth1_"$cntid" up
     ip netns exec netns_"$cntid" ip route add default via "$gwip"
+
     btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$cntid" > /dev/null
+
     mount -o bind /dev/pts "$btrfs_path/$cntid/dev/pts"
     echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
-    echo "$0 $*" > "$btrfs_path/$cntid/${cntid}.cmd"
     echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
     cp init "$btrfs_path/$cntid/root/init" || true
-    cgcreate -g "$cgroups:/$cntid"
 
+    cgcreate -g "$cgroups:/$cntid"
     : "${BOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$BOCKER_CPU_SHARE" "$cntid"
-    : "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1000000))" "$cntid"
+    : "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1048576))" "$cntid"
+    #: "${BOCKER_KMEM_LIMIT:=32}" && cgset -r memory.kmem.limit_in_bytes="$((BOCKER_KMEM_LIMIT * 1048576))" "$cntid"
+    #: "${BOCKER_MEMSW_LIMIT:=$BOCKER_MEM_LIMIT}" && cgset -r memory.memsw.limit_in_bytes="$((BOCKER_MEMSW_LIMIT * 1048576))" "$cntid"
 
     echo "$cntid"
 }
 
 function bocker_execute() {
+    echo "$*" > "$btrfs_path/$cntid/${cntid}.cmd"
     cntid="$1"
     shift;
     cgexec -g "$cgroups:$cntid" \
@@ -293,8 +300,8 @@ function bocker_help() { #HELP Display this message:\nBOCKER help
     sed -n "s/^.*#HELP\\s//p;" < "$1" | sed "s/\\\\n/\n\t/g;s/$/\n/;s!BOCKER!${1/!/\\!}!g"
 }
 
-[[ -z "${1-}" ]] && bocker_help "$0"
-case $1 in
+[[ -z "${1-}" ]] && bocker_help "$0" && exit
+case "$1" in
     pull|init|rm|images|ps|run|spawn|exec|kill|cleanup|stop|name|logs|route|export|commit) bocker_"$1" "${@:2}" ;;
     *) bocker_help "$0" ;;
 esac
