@@ -7,7 +7,10 @@ btrfs_path='/var/bocker' && cgroups='cpu,cpuacct,memory' && repo='../.bocker-rep
 
 # check if btrfs is mounted and available
 set +e
-[ -d "$btrfs_path" ] || mkdir -p "$btrfs_path"
+[ -d "$btrfs_path" ] || {
+  printf '%s does not exist, creating:\n' "$btrfs_path"
+  mkdir -p "$btrfs_path"
+}
 sudo btrfs filesystem show "$btrfs_path" > /dev/null
 [ "$?" -ne 0 ] && {
   printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path"
@@ -89,6 +92,10 @@ function bocker_init() { #HELP Create an image from a directory:\nBOCKER init <d
 
 function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name> <tag>
     [ -d '/tmp' ] || { printf 'Error: /tmp does not exist'; exit 1; }
+    [ "$#" -eq 2 ] || {
+      printf 'Usage: bocker pull <image> <version>\n'
+      exit 1
+    }
 
     fn_get_registry () {
       curl -sL -o /dev/null -D- \
@@ -126,7 +133,7 @@ function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name
         curl -#L -H "Authorization: Token $token" \
           "$registry/images/$id/layer" \
           -o /tmp/"$tmp_uuid"/layer.tar
-        tar xf /tmp/"$tmp_uuid"/layer.tar -C /tmp/"$tmp_uuid" 
+        tar xf /tmp/"$tmp_uuid"/layer.tar -C /tmp/"$tmp_uuid"
         rm /tmp/"$tmp_uuid"/layer.tar
     done
 
