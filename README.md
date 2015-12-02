@@ -1,14 +1,18 @@
 # Shocker
-Docker implemented in around 100 lines of bash.
+Docker implemented in around 100 lines of shell.
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Example Usage](#example-usage)
+- [FAQ](#faq)
+- [License](#license)
 
-  * [Prerequisites](#prerequisites)
-  * [Example Usage](#example-usage)
-  * [Functionality: Currently Implemented](#functionality-currently-implemented)
-  * [Functionality: Not Yet Implemented](#functionality-not-yet-implemented)
-  * [License](#license)
+## Features
+- process isolation using `cgroups`, `iptables`, `chroot` and `namespaces(7)`
+- advanced control over network with port forwarding
+- strong focus on usability
+- transparent codebase written in modern POSIX shell
 
 ## Prerequisites
-
 The following packages are needed to run shocker.
 
 * btrfs-progs
@@ -19,7 +23,10 @@ The following packages are needed to run shocker.
 * util-linux >= 2.25.2
 * coreutils >= 7.5
 
-Because most distributions do not ship a new enough version of util-linux you will probably need to grab the sources from [here](https://www.kernel.org/pub/linux/utils/util-linux/v2.25/) and compile it yourself.
+Because most distributions do not ship a new enough version of util-linux you
+will probably need to grab the sources from
+[here](https://www.kernel.org/pub/linux/utils/util-linux/v2.25/) and compile it
+yourself.
 
 Additionally your system will need to be configured with the following:
 
@@ -28,12 +35,12 @@ Additionally your system will need to be configured with the following:
 * IP forwarding enabled in `/proc/sys/net/ipv4/ip_forward`
 * A firewall routing traffic from `bridge0` to a physical interface.
 
-For ease of use a Vagrantfile is included which will build the needed environment.
-
-Even if you meet the above prerequisites you probably still want to **run shocker in a virtual machine**. Shocker runs as root and among other things needs to make changes to your network interfaces, routing table, and firewall rules. **I can make no guarantees that it won't trash your system**.
+Even if you meet the above prerequisites you probably still want to **run
+shocker in a virtual machine**. Shocker runs as root and among other things
+needs to make changes to your network interfaces, routing table, and firewall
+rules.
 
 ## Example Usage
-
 ```
 $ shocker pull centos 7
 ######################################################################## 100.0%
@@ -103,28 +110,6 @@ $ cat /sys/fs/cgroup/cpu/ps_42188/cpu.shares
 $ cat /sys/fs/cgroup/memory/ps_42188/memory.limit_in_bytes
 1024000000
 ```
-
-## Functionality: Currently Implemented
-
-* `docker build` †
-* `docker pull`
-* `docker images`
-* `docker ps`
-* `docker run`
-* `docker exec`
-* `docker logs`
-* `docker commit`
-* `docker rm` / `docker rmi`
-* Networking
-* Quota Support / CGroups
-
-† `shocker init` provides a very limited implementation of `docker build`
-
-## Functionality: Not Yet Implemented
-
-* Data Volume Containers
-* Data Volumes
-* Port Forwarding
 
 ## FAQ
 ### Error: btrfs: command not found
