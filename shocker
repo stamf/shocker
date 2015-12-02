@@ -255,6 +255,7 @@ shocker_pre_run() {
   mount -o bind /dev/pts "$btrfs_path/$cntid/dev/pts"
   echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
   echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
+  echo "$@"  > "$btrfs_path/$cntid/${cntid}.cmd"
   cp init "$btrfs_path/$cntid/root/init" || true
 
   cgcreate -g "$cgroups:/$cntid"
@@ -267,7 +268,6 @@ shocker_pre_run() {
 }
 
 shocker_execute() {
-  echo "$*" > "$btrfs_path/$cntid/${cntid}.cmd"
   cntid="$1"
   shift;
   cgexec -g "$cgroups:$cntid" \
@@ -284,7 +284,7 @@ shocker_post_run() {
 }
 
 shocker_spawn() { #HELP Create a container:\nSHOCKER spawn <image_id> <env> <nix-image> <conf-file>
-  cntid=$(shocker_pre_run "$1")
+  cntid=$(shocker_pre_run "$@")
 
   service="$3"
   instance_tag="$btrfs_path/$cntid/var/tmp/instance-tag"
@@ -303,7 +303,7 @@ shocker_spawn() { #HELP Create a container:\nSHOCKER spawn <image_id> <env> <nix
 }
 
 shocker_run() { #HELP Create a container:\nSHOCKER run <image_id> <command>
-  cntid=$(shocker_pre_run "$1")
+  cntid=$(shocker_pre_run "$@")
   shocker_execute "$cntid" "${@:2}" || true
   shocker_post_run "$cntid"
 }
