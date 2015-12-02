@@ -59,7 +59,7 @@ addr_to_hostid() { #Transforms ip/mask into an int representing the host
 }
 
 #shellcheck disable=SC1091
-source ./network.conf 2>/dev/null || true
+source ./settings.conf 2>/dev/null || true
 NETWORK=${NETWORK:-10.0.0.0/24}
 BRIDGE_DEV=${BRIDGE_DEV:-bridge0}
 
