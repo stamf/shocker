@@ -17,7 +17,7 @@ else
 fi
 
 if mount | grep -q /dev/sda2; then :; else
-    mount /dev/sda2 /var/bocker
+    mount /dev/sda2 /var/shocker
 fi
 
 if ip link list bridge0 >/dev/null 2>&1; then

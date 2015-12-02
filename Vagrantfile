@@ -4,9 +4,9 @@ rpm -i https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.
 yum install -y -q autoconf automake btrfs-progs docker gettext-devel git libcgroup-tools libtool python-pip
 
 fallocate -l 10G ~/btrfs.img
-mkdir /var/bocker
+mkdir /var/shocker
 mkfs.btrfs ~/btrfs.img
-mount -o loop ~/btrfs.img /var/bocker
+mount -o loop ~/btrfs.img /var/shocker
 
 pip install git+https://github.com/larsks/undocker
 systemctl start docker.service
@@ -22,7 +22,7 @@ make
 mv unshare /usr/bin/unshare
 cd ..
 
-ln -s /vagrant/bocker /usr/bin/bocker
+ln -s /vagrant/shocker /usr/bin/shocker
 
 echo 1 > /proc/sys/net/ipv4/ip_forward
 iptables --flush
