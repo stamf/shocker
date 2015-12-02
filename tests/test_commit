@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+
+img="$(./shocker init ~/base-image | awk '{print $2}')"
+./shocker images | grep -qw "$img"
+[[ "$?" == 0 ]]
+
+./shocker run "$img" which wget
+ps="$(./shocker ps | grep 'which wget' | awk '{print $1}')"
+logs="$(./shocker logs "$ps")"
+./shocker rm "$ps"
+[[ "$logs" == "which: no wget in"* ]]
+
+./shocker run "$img" yum install -y wget
+ps="$(./shocker ps | grep 'yum install -y wget' | awk '{print $1}')"
+./shocker commit "$ps" "$img"
+
+./shocker run "$img" which wget
+ps="$(./shocker ps | grep 'which wget' | awk '{print $1}')"
+logs="$(./shocker logs "$ps")"
+[[ "$logs" == '/usr/bin/wget' ]]
