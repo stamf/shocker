@@ -77,17 +77,33 @@ function bocker_check() {
     btrfs subvolume list "$btrfs_path" | grep -qw "$1" && echo 0 || echo 1
 }
 
-function bocker_init() { #HELP Create an image from a directory:\nBOCKER init <directory>
-    uuid="img_$(shuf -i 42002-42254 -n 1)"
-    if [[ -d "$1" ]]; then
-        [[ "$(bocker_check "$uuid")" == 0 ]] && bocker_run "$@"
-        btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
-        cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
-        [[ ! -f "$btrfs_path/$uuid"/img.source ]] && echo "$1" > "$btrfs_path/$uuid"/img.source
-        echo "Created: $uuid"
-    else
-        echo "No directory named '$1' exists"
-    fi
+bocker_init() {
+  usage () {
+    printf "  bocker-init - create an image from a directory\n"
+    printf "  Usage: bocker init <directory>\n\n"
+    printf "  Options:\n"
+    printf "    -h, --help output usage information\n\n"
+    printf "  Examples:\n"
+    printf "    $ bocker init .   # create a new image from current dir\n"
+  }
+
+  [ "$#" -eq 1 ] || { usage; exit 1; }
+  case "$1" in
+    -h|--help ) usage && exit 1 ;;
+  esac
+
+  uuid="img_$(shuf -i 42002-42254 -n 1)"
+  [ -d "$1" ] || { printf "No directory named '%s' exists" "$1"; exit 1; }
+
+  [ "$(bocker_check "$uuid")" -eq 0 ] && bocker_run "$@"
+
+  btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
+  cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
+  [ -f "$btrfs_path/$uuid"/img.source ] || {
+    echo "$1" > "$btrfs_path/$uuid"/img.source
+  }
+
+  printf "Created: %s" "$uuid"
 }
 
 function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name> <tag>
