@@ -205,7 +205,7 @@ get_state() {
 }
 
 shocker_ps() { #HELP List containers:\nSHOCKER ps
-  file_count="$("$btrfs_path"/ps_* | wc -l)"
+  file_count="$(find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' | wc -l)"
   if [ "$file_count" -eq 0 ]; then
     printf "No running containers\n"
     exit 0
