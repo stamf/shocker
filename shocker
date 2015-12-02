@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail; shopt -s nullglob
-btrfs_path='/var/bocker' && cgroups='cpu,cpuacct,memory' && repo='../.bocker-repo';
+btrfs_path='/var/shocker' && cgroups='cpu,cpuacct,memory' && repo='../.shocker-repo';
 #shellcheck disable=SC2015
-[[ $# -gt 0 ]] && while [ "${1:0:2}" == '--' ]; do OPTION=${1:2}; [[ $OPTION =~ = ]] && declare "BOCKER_${OPTION/=*/}=${OPTION/*=/}" || declare "BOCKER_${OPTION}=x"; shift; done
+[[ $# -gt 0 ]] && while [ "${1:0:2}" == '--' ]; do OPTION=${1:2}; [[ $OPTION =~ = ]] && declare "SHOCKER_${OPTION/=*/}=${OPTION/*=/}" || declare "SHOCKER_${OPTION}=x"; shift; done
 
 
 # check if btrfs is mounted and available
@@ -18,14 +18,14 @@ sudo btrfs filesystem show "$btrfs_path" > /dev/null
 }
 set -e
 
-function ip_to_int() { #Transform ipv4 address into int
+ip_to_int() { #Transform ipv4 address into int
     local IFS='[./]'
     #shellcheck disable=SC2086
     set -- $1
     echo $(($1 * 256**3 + $2 * 256**2 + $3 * 256**1 + $4))
 }
 
-function int_to_ip() { #Transform int into ipv4 address
+int_to_ip() { #Transform int into ipv4 address
     printf "%d.%d.%d.%d" \
         $((($1 & 256**4-1) / 256**3)) \
         $((($1 & 256**3-1) / 256**2)) \
@@ -33,7 +33,7 @@ function int_to_ip() { #Transform int into ipv4 address
         $(( $1 & 256**1-1))
 }
 
-function int_to_mac() { #Transform int into mac address
+int_to_mac() { #Transform int into mac address
     printf "02:42:%02x:%02x:%02x:%02x" \
         $((($1 & 256**4-1) / 256**3)) \
         $((($1 & 256**3-1) / 256**2)) \
@@ -41,7 +41,7 @@ function int_to_mac() { #Transform int into mac address
         $(( $1 & 256**1-1))
 }
 
-function addr_to_network() { #Transforms ip/mask into an int representing the network
+addr_to_network() { #Transforms ip/mask into an int representing the network
     local IFS=/
     #shellcheck disable=SC2086
     set -- $1
@@ -50,7 +50,7 @@ function addr_to_network() { #Transforms ip/mask into an int representing the ne
     echo $((addr & mask))
 }
 
-function addr_to_hostid() { #Transforms ip/mask into an int representing the host
+addr_to_hostid() { #Transforms ip/mask into an int representing the host
     local IFS=/
     #shellcheck disable=SC2086
     set -- $1
@@ -69,22 +69,22 @@ NHOSTS=$((2**(32-MASK)))
 NETWORK=$(addr_to_network "$NETWORK")
 GATEWAY=$((NETWORK + 1))
 
-function gen_uuid() {
+gen_uuid() {
     shuf -i 2-$NHOSTS -n 1
 }
 
-function bocker_check() {
+shocker_check() {
     btrfs subvolume list "$btrfs_path" | grep -qw "$1" && echo 0 || echo 1
 }
 
-bocker_init() {
+shocker_init() {
   usage () {
-    printf "  bocker-init - create an image from a directory\n"
-    printf "  Usage: bocker init <directory>\n\n"
+    printf "  shocker-init - create an image from a directory\n"
+    printf "  Usage: shocker init <directory>\n\n"
     printf "  Options:\n"
     printf "    -h, --help output usage information\n\n"
     printf "  Examples:\n"
-    printf "    $ bocker init .   # create a new image from current dir\n"
+    printf "    $ shocker init .   # create a new image from current dir\n"
   }
 
   [ "$#" -eq 1 ] || { usage; exit 1; }
@@ -106,10 +106,10 @@ bocker_init() {
   printf "Created: %s" "$uuid"
 }
 
-function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name> <tag>
+shocker_pull() { #HELP Pull an image from Docker Hub:\nSHOCKER pull <name> <tag>
     [ -d '/tmp' ] || { printf 'Error: /tmp does not exist'; exit 1; }
     [ "$#" -eq 2 ] || {
-      printf 'Usage: bocker pull <image> <version>\n'
+      printf 'Usage: shocker pull <image> <version>\n'
       exit 1
     }
 
@@ -154,18 +154,18 @@ function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name
     done
 
     echo "$1:$2" > /tmp/"$tmp_uuid"/img.source
-    bocker_init /tmp/"$tmp_uuid"
+    shocker_init /tmp/"$tmp_uuid"
     rm -rf /tmp/"$tmp_uuid"
 }
 
-function bocker_rm() { #HELP Delete an image or container:\nBOCKER rm <image_id or container_id>
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+shocker_rm() { #HELP Delete an image or container:\nSHOCKER rm <image_id or container_id>
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
     btrfs subvolume delete "$btrfs_path/$1" > /dev/null
     cgdelete -g "$cgroups:/$1" &> /dev/null || true
     echo "Removed: $1"
 }
 
-function bocker_images() { #HELP List images:\nBOCKER images
+shocker_images() { #HELP List images:\nSHOCKER images
     echo -e "IMAGE_ID\t\tSOURCE"
     for img in "$btrfs_path"/img_*; do
         img=$(basename "$img")
@@ -173,7 +173,7 @@ function bocker_images() { #HELP List images:\nBOCKER images
     done
 }
 
-function get_state() {
+get_state() {
     [[ ! -d "$btrfs_path/$1" ]] && echo missing && return
     [[ -d "/sys/fs/cgroup/cpuacct/$1" ]] && cgdef=1 || cgdef=0
     grep -q . "/sys/fs/cgroup/cpuacct/$1/tasks" 2>/dev/null && procs=1 || procs=0
@@ -187,7 +187,7 @@ function get_state() {
     echo $state
 }
 
-bocker_ps() { #HELP List containers:\nBOCKER ps
+shocker_ps() { #HELP List containers:\nSHOCKER ps
   file_count="$("$btrfs_path"/ps_* | wc -l)"
   if [ "$file_count" -eq 0 ]; then
     printf "No running containers\n"
@@ -212,11 +212,11 @@ bocker_ps() { #HELP List containers:\nBOCKER ps
   done
 }
 
-function bocker_pre_run() {
+shocker_pre_run() {
     uuid=$(gen_uuid)
     cntid="ps_$uuid"
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
-    [[ "$(bocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& bocker_run "$@" && return
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
+    [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& shocker_run "$@" && return
     #TODO uuid conflict could result in infinite loop if all uuids are used
     ip="$(int_to_ip $((NETWORK + uuid)))"
     mac="$(int_to_mac "$uuid")"
@@ -241,15 +241,15 @@ function bocker_pre_run() {
     cp init "$btrfs_path/$cntid/root/init" || true
 
     cgcreate -g "$cgroups:/$cntid"
-    : "${BOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$BOCKER_CPU_SHARE" "$cntid"
-    : "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1048576))" "$cntid"
-    #: "${BOCKER_KMEM_LIMIT:=32}" && cgset -r memory.kmem.limit_in_bytes="$((BOCKER_KMEM_LIMIT * 1048576))" "$cntid"
-    #: "${BOCKER_MEMSW_LIMIT:=$BOCKER_MEM_LIMIT}" && cgset -r memory.memsw.limit_in_bytes="$((BOCKER_MEMSW_LIMIT * 1048576))" "$cntid"
+    : "${SHOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$SHOCKER_CPU_SHARE" "$cntid"
+    : "${SHOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((SHOCKER_MEM_LIMIT * 1048576))" "$cntid"
+    #: "${SHOCKER_KMEM_LIMIT:=32}" && cgset -r memory.kmem.limit_in_bytes="$((SHOCKER_KMEM_LIMIT * 1048576))" "$cntid"
+    #: "${SHOCKER_MEMSW_LIMIT:=$SHOCKER_MEM_LIMIT}" && cgset -r memory.memsw.limit_in_bytes="$((SHOCKER_MEMSW_LIMIT * 1048576))" "$cntid"
 
     echo "$cntid"
 }
 
-function bocker_execute() {
+shocker_execute() {
     echo "$*" > "$btrfs_path/$cntid/${cntid}.cmd"
     cntid="$1"
     shift;
@@ -260,14 +260,14 @@ function bocker_execute() {
         /bin/sh -c "source /root/init; $*" || true
 }
 
-function bocker_post_run() {
+shocker_post_run() {
     ip link del dev veth0_"$1"
     ip netns del netns_"$1"
     cgdelete -g "$cgroups:/$1" &> /dev/null || true
 }
 
-function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <env> <nix-image> <conf-file>
-    cntid=$(bocker_pre_run "$1")
+shocker_spawn() { #HELP Create a container:\nSHOCKER spawn <image_id> <env> <nix-image> <conf-file>
+    cntid=$(shocker_pre_run "$1")
 
     service="$3"
     instance_tag="$btrfs_path/$cntid/var/tmp/instance-tag"
@@ -279,27 +279,27 @@ function bocker_spawn() { #HELP Create a container:\nBOCKER spawn <image_id> <en
     popd >/dev/null
 
     echo -e "$(date +%s.%N)\t$2\t$service\t$(cat "$btrfs_path/$cntid/host-ip-addr")" > "$instance_tag"
-    bocker_execute "$cntid" "$service" -c "/etc/service-config/$4" || true
+    shocker_execute "$cntid" "$service" -c "/etc/service-config/$4" || true
     rm -f "$instance_tag"
 
-    bocker_post_run "$cntid"
+    shocker_post_run "$cntid"
 }
 
-function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <command>
-    cntid=$(bocker_pre_run "$1")
-    bocker_execute "$cntid" "${@:2}" || true
-    bocker_post_run "$cntid"
+shocker_run() { #HELP Create a container:\nSHOCKER run <image_id> <command>
+    cntid=$(shocker_pre_run "$1")
+    shocker_execute "$cntid" "${@:2}" || true
+    shocker_post_run "$cntid"
 }
 
-function bocker_exec() { #HELP Execute a command in a running container:\nBOCKER exec <container_id> <command>
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+shocker_exec() { #HELP Execute a command in a running container:\nSHOCKER exec <container_id> <command>
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
     cid="$(ps ao ppid,pid | awk -v ppid="$(pgrep -f "unshare.*$1")" '$1 == ppid {print $2}')"
     [[ ! "$cid" =~ ^\ *[0-9]+$ ]] && echo "Container '$1' exists but is not running" && exit 1
     nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
 }
 
-function bocker_kill() { #HELP Kill a running container:\nBOCKER kill <container_id> [<signal>]
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+shocker_kill() { #HELP Kill a running container:\nSHOCKER kill <container_id> [<signal>]
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
 
     state=$(get_state "$1")
     case $state in
@@ -313,8 +313,8 @@ function bocker_kill() { #HELP Kill a running container:\nBOCKER kill <container
     done
 }
 
-function bocker_stop() { #HELP Stop a running container:\nBOCKER stop <container_id>
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+shocker_stop() { #HELP Stop a running container:\nSHOCKER stop <container_id>
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
 
     state=$(get_state "$1")
     case $state in
@@ -328,7 +328,7 @@ function bocker_stop() { #HELP Stop a running container:\nBOCKER stop <container
     done
 }
 
-function bocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth devices:\nBOCKER cleanup
+shocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth devices:\nSHOCKER cleanup
     #shellcheck disable=SC2012
     ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
         ps=$(basename "$ps")
@@ -341,12 +341,12 @@ function bocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth de
     done
 }
 
-function bocker_logs() { #HELP View logs from a container:\nBOCKER logs <container_id>
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+shocker_logs() { #HELP View logs from a container:\nSHOCKER logs <container_id>
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
     cat "$btrfs_path/$1/$1.log"
 }
 
-function bocker_route() { #HELP Ensure outgoing route exists for containers:\nBOCKER route <network-device>
+shocker_route() { #HELP Ensure outgoing route exists for containers:\nSHOCKER route <network-device>
     ip link add "$BRIDGE_DEV" type bridge || true
     ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
     ip link set "$BRIDGE_DEV" up
@@ -354,30 +354,30 @@ function bocker_route() { #HELP Ensure outgoing route exists for containers:\nBO
     iptables -t nat -A POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" -o "$1" -j MASQUERADE
 }
 
-function bocker_export() { #HELP Expose containers port through host:\nBOCKER export <container_id> <port> <host_port>
+shocker_export() { #HELP Expose containers port through host:\nSHOCKER export <container_id> <port> <host_port>
     iptables -t nat -A PREROUTING -p tcp -m tcp --dport "$3" -j DNAT \
         --to-destination "$(cat "$btrfs_path/$1/host-ip-addr"):$2" \
         -m comment --comment "host:$3 -> $1:$2"
 }
 
-function bocker_commit() { #HELP Commit a container to an image:\nBOCKER commit <container_id> <image_id>
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-    [[ "$(bocker_check "$2")" == 1 ]] && echo "No image named '$2' exists" && exit 1
-    bocker_rm "$2" && btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$2" > /dev/null
+shocker_commit() { #HELP Commit a container to an image:\nSHOCKER commit <container_id> <image_id>
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+    [[ "$(shocker_check "$2")" == 1 ]] && echo "No image named '$2' exists" && exit 1
+    shocker_rm "$2" && btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$2" > /dev/null
     echo "Created: $2"
 }
 
-function bocker_name() { #HELP Give a symbolic name to a container:\nBOCKER name <container_id> <name>
-    [[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <container_id> <name>
+    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
     ln -s "$btrfs_path/$1" "$btrfs_path/$2"
 }
 
-function bocker_help() { #HELP Display this message:\nBOCKER help
-    sed -n "s/^.*#HELP\\s//p;" < "$1" | sed "s/\\\\n/\n\t/g;s/$/\n/;s!BOCKER!${1/!/\\!}!g"
+shocker_help() { #HELP Display this message:\nSHOCKER help
+    sed -n "s/^.*#HELP\\s//p;" < "$1" | sed "s/\\\\n/\n\t/g;s/$/\n/;s!SHOCKER!${1/!/\\!}!g"
 }
 
-[[ -z "${1-}" ]] && bocker_help "$0" && exit
+[[ -z "${1-}" ]] && shocker_help "$0" && exit
 case "$1" in
-    pull|init|rm|images|ps|run|spawn|exec|kill|cleanup|stop|name|logs|route|export|commit) bocker_"$1" "${@:2}" ;;
-    *) bocker_help "$0" ;;
+    pull|init|rm|images|ps|run|spawn|exec|kill|cleanup|stop|name|logs|route|export|commit) shocker_"$1" "${@:2}" ;;
+    *) shocker_help "$0" ;;
 esac

@@ -1,4 +1,4 @@
-# Bocker
+# Shocker
 Docker implemented in around 100 lines of bash.
 
   * [Prerequisites](#prerequisites)
@@ -9,7 +9,7 @@ Docker implemented in around 100 lines of bash.
 
 ## Prerequisites
 
-The following packages are needed to run bocker.
+The following packages are needed to run shocker.
 
 * btrfs-progs
 * curl
@@ -23,63 +23,63 @@ Because most distributions do not ship a new enough version of util-linux you wi
 
 Additionally your system will need to be configured with the following:
 
-* A btrfs filesystem mounted under `/var/bocker`
+* A btrfs filesystem mounted under `/var/shocker`
 * A network bridge called `bridge0` and an IP of 10.0.0.1/24
 * IP forwarding enabled in `/proc/sys/net/ipv4/ip_forward`
 * A firewall routing traffic from `bridge0` to a physical interface.
 
 For ease of use a Vagrantfile is included which will build the needed environment.
 
-Even if you meet the above prerequisites you probably still want to **run bocker in a virtual machine**. Bocker runs as root and among other things needs to make changes to your network interfaces, routing table, and firewall rules. **I can make no guarantees that it won't trash your system**.
+Even if you meet the above prerequisites you probably still want to **run shocker in a virtual machine**. Shocker runs as root and among other things needs to make changes to your network interfaces, routing table, and firewall rules. **I can make no guarantees that it won't trash your system**.
 
 ## Example Usage
 
 ```
-$ bocker pull centos 7
+$ shocker pull centos 7
 ######################################################################## 100.0%
 ######################################################################## 100.0%
 ######################################################################## 100.0%
 Created: img_42150
 
-$ bocker images
+$ shocker images
 IMAGE_ID        SOURCE
 img_42150       centos:7
 
-$ bocker run img_42150 cat /etc/centos-release
+$ shocker run img_42150 cat /etc/centos-release
 CentOS Linux release 7.1.1503 (Core)
 
-$ bocker ps
+$ shocker ps
 CONTAINER_ID       COMMAND
 ps_42045           cat /etc/centos-release
 
-$ bocker logs ps_42045
+$ shocker logs ps_42045
 CentOS Linux release 7.1.1503 (Core)
 
-$ bocker rm ps_42045
+$ shocker rm ps_42045
 Removed: ps_42045
 
-$ bocker run img_42150 which wget
+$ shocker run img_42150 which wget
 which: no wget in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin)
 
-$ bocker run img_42150 yum install -y wget
+$ shocker run img_42150 yum install -y wget
 Installing : wget-1.14-10.el7_0.1.x86_64                                  1/1
 Verifying  : wget-1.14-10.el7_0.1.x86_64                                  1/1
 Installed  : wget.x86_64 0:1.14-10.el7_0.1
 Complete!
 
-$ bocker ps
+$ shocker ps
 CONTAINER_ID       COMMAND
 ps_42018           yum install -y wget
 ps_42182           which wget
 
-$ bocker commit ps_42018 img_42150
+$ shocker commit ps_42018 img_42150
 Removed: img_42150
 Created: img_42150
 
-$ bocker run img_42150 which wget
+$ shocker run img_42150 which wget
 /usr/bin/wget
 
-$ bocker run img_42150 cat /proc/1/cgroup
+$ shocker run img_42150 cat /proc/1/cgroup
 ...
 4:memory:/ps_42152
 3:cpuacct,cpu:/ps_42152
@@ -90,9 +90,9 @@ $ cat /sys/fs/cgroup/cpu/ps_42152/cpu.shares
 $ cat /sys/fs/cgroup/memory/ps_42152/memory.limit_in_bytes
 512000000
 
-$ BOCKER_CPU_SHARE=1024 \
-	BOCKER_MEM_LIMIT=1024 \
-	bocker run img_42150 cat /proc/1/cgroup
+$ SHOCKER_CPU_SHARE=1024 \
+	SHOCKER_MEM_LIMIT=1024 \
+	shocker run img_42150 cat /proc/1/cgroup
 ...
 4:memory:/ps_42188
 3:cpuacct,cpu:/ps_42188
@@ -118,7 +118,7 @@ $ cat /sys/fs/cgroup/memory/ps_42188/memory.limit_in_bytes
 * Networking
 * Quota Support / CGroups
 
-† `bocker init` provides a very limited implementation of `docker build`
+† `shocker init` provides a very limited implementation of `docker build`
 
 ## Functionality: Not Yet Implemented
 
@@ -141,12 +141,12 @@ $ dd if=/dev/zero of=btrfs-hdd.img bs=1G count=2
 $ sudo losetup loop0 btrfs-hdd.img
 $ sudo mkfs.btrfs /dev/loop0
 
-# create `/var/bocker` if it does not exist
-$ [ -d '/var/bocker' ] || sudo mkdir -p '/var/bocker'
+# create `/var/shocker` if it does not exist
+$ [ -d '/var/shocker' ] || sudo mkdir -p '/var/shocker'
 
 # open file as block device and mount
-$ sudo mount '/dev/loop0' '/var/bocker'
-$ sudo btrfs filesystem show '/var/bocker'
+$ sudo mount '/dev/loop0' '/var/shocker'
+$ sudo btrfs filesystem show '/var/shocker'
 ```
 
 ### Error: /tmp does not exist
@@ -159,18 +159,4 @@ $ sudo chmod 1777 /tmp   # open to everyone + set sticky bit
 ```
 
 ## License
-
-Copyright (C) 2015 Peter Wilmott
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+GPL-3
