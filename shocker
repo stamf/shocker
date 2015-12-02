@@ -158,11 +158,29 @@ shocker_pull() { #HELP Pull an image from Docker Hub:\nSHOCKER pull <name> <tag>
     rm -rf /tmp/"$tmp_uuid"
 }
 
-shocker_rm() { #HELP Delete an image or container:\nSHOCKER rm <image_id or container_id>
-    [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-    btrfs subvolume delete "$btrfs_path/$1" > /dev/null
-    cgdelete -g "$cgroups:/$1" &> /dev/null || true
-    echo "Removed: $1"
+shocker_rm() {
+  usage () {
+    printf "  shocker-rm - remove stored images or containers\n"
+    printf "  Usage: shocker rm <image-id>|<container-id>\n\n"
+    printf "  Options:\n"
+    printf "    -h, --help output usage information\n\n"
+    printf "  Examples:\n"
+    printf "    $ shocker rm 1234   # create a new image from current dir\n"
+  }
+
+  [ "$#" -eq 1 ] || { usage; exit 1; }
+  case "$1" in
+    -h|--help ) usage && exit 1 ;;
+  esac
+
+  [ "$(shocker_check "$1")" -eq 0 ] || {
+    printf "No container named '%s' exists" "$1"
+    exit 1
+  }
+
+  btrfs subvolume delete "$btrfs_path"/"$1" > /dev/null
+  cgdelete -g "$cgroups":/"$1" &> /dev/null || true
+  printf "Removed: %s\n" "$1"
 }
 
 shocker_images() { #HELP List images:\nSHOCKER images
