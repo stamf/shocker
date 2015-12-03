@@ -6,9 +6,12 @@ btrfs_path='/var/shocker'
 usage () {
 cat << USAGE
   shocker-init - create an image from a directory
+
   Usage: shocker init <directory>
+
   Options:
    -h, --help output usage information
+
   Examples:
    $ shocker init .  # create a new image from current dir
 USAGE
