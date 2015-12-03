@@ -37,8 +37,8 @@ addr_to_network() { #Transforms ip/mask into an int representing the network
 }
 
 addr_to_hostid() { #Transforms ip/mask into an int representing the host
-  local IFS=/
-  set -- "$1"
+  # shellcheck disable=SC2001
+  eval set -- "$(echo "$1" | sed 's|/| |')"
   mask=$((2**(32-$2)-1))
   addr=$(ip_to_int "$1")
   echo $((addr & mask))
