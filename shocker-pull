@@ -1,0 +1,56 @@
+#!/bin/bash
+
+shocker_init () {
+  ./shocker-init "$@"
+}
+
+#HELP Pull an image from Docker Hub:\nSHOCKER pull <name> <tag>
+[ -d '/tmp' ] || { printf 'Error: /tmp does not exist\n'; exit 1; }
+[ "$#" -eq 2 ] || {
+  printf 'Usage: shocker pull <image> <version>\n'
+  exit 1
+}
+
+fn_get_registry () {
+ curl -sL -o /dev/null -D- \
+   -H 'X-Docker-Token: true' \
+   "https://index.docker.io/v1/repositories/$1/images" \
+   | tr -d '\r' \
+   | awk -F ': *' '$1 == "X-Docker-Token" { print $2 }'
+}
+
+fn_get_id () {
+ curl -sL -H "Authorization: Token $token" \
+   "$registry/repositories/$1/tags/$2" \
+   | sed 's/"//g'
+}
+
+fn_get_ancestry () {
+ curl -sL \
+  -H "Authorization: Token $token" \
+  "$registry/images/$id/ancestry"
+}
+
+token="$(fn_get_registry "$1")"
+registry='https://registry-1.docker.io/v1'
+id="$(fn_get_id "$1" "$2")"
+[ "${#id}" -ne 64 ] && echo "No image named '$1:$2' exists" && exit 1
+
+ancestry="$(fn_get_ancestry)"
+IFS=','
+ancestry=(${ancestry//[\[\] \"]/})
+
+IFS=' \n\t'
+tmp_uuid="img_$RANDOM"
+mkdir /tmp/"$tmp_uuid"
+for id in "${ancestry[@]}"; do
+  curl -#L -H "Authorization: Token $token" \
+    "$registry/images/$id/layer" \
+    -o /tmp/"$tmp_uuid"/layer.tar
+  tar xf /tmp/"$tmp_uuid"/layer.tar -C /tmp/"$tmp_uuid"
+  rm /tmp/"$tmp_uuid"/layer.tar
+done
+
+echo "$1:$2" > /tmp/"$tmp_uuid"/img.source
+shocker_init /tmp/"$tmp_uuid"
+rm -rf /tmp/"$tmp_uuid"
