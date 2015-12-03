@@ -33,4 +33,4 @@ cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
   echo "$1" > "$btrfs_path/$uuid"/img.source
 }
 
-printf "Created: %s" "$uuid\n"
+printf "Created: %s\n" "$uuid"

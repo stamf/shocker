@@ -3,7 +3,8 @@
 btrfs_path='/var/shocker' && cgroups='cpu,cpuacct,memory'
 
 shocker_check() {
-  btrfs subvolume list "$btrfs_path" | grep -qw "$1" && echo 0 || echo 1
+  btrfs subvolume list "$btrfs_path" | grep -qw "$1"
+  return "$?"
 }
 
 ip_to_int() { #Transform ipv4 address into int
