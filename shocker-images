@@ -1,0 +1,27 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+usage () {
+cat << USAGE
+  shocker-images - list images
+  Usage: shocker images
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker images   # list images
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+printf "IMAGE_ID\t\tSOURCE"
+for img in "$btrfs_path"/img_*; do
+  img=$(basename "$img")
+  img_source="$(cat "$btrfs_path/$img/img.source")"
+  printf "%s\t\t%s" "$img" "$img_source"
+done

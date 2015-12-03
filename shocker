@@ -46,12 +46,8 @@ shocker_rm() {
   ./shocker-rm "$@"
 }
 
-shocker_images() { #HELP List images:\nSHOCKER images
-  echo -e "IMAGE_ID\t\tSOURCE"
-  for img in "$btrfs_path"/img_*; do
-    img=$(basename "$img")
-    echo -e "$img\t\t$(cat "$btrfs_path/$img/img.source")"
-  done
+shocker_images() {
+  ./shocker-images "$@"
 }
 
 get_state() {
