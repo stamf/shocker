@@ -43,3 +43,17 @@ addr_to_hostid() { #Transforms ip/mask into an int representing the host
   addr=$(ip_to_int "$1")
   echo $((addr & mask))
 }
+
+get_state() {
+  [[ ! -d "$btrfs_path/$1" ]] && echo missing && return
+  [[ -d "/sys/fs/cgroup/cpuacct/$1" ]] && cgdef=1 || cgdef=0
+  grep -q . "/sys/fs/cgroup/cpuacct/$1/tasks" 2>/dev/null && procs=1 || procs=0
+  ip netns show | grep -q "netns_$1" 2>/dev/null && netns=1 || netns=0
+  ip link show | grep -q "veth0_$1" 2>/dev/null && veth=1 || veth=0
+
+  state=crashed
+  [[ $((cgdef & procs & netns & veth)) -eq 1 ]] && state=running
+  [[ $((cgdef | procs | netns | veth)) -eq 0 ]] && state=stopped
+
+  echo $state
+}
