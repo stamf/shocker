@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# source utility functions
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-route - ensure outgoing route exists for containers
+
+  Usage: shocker route <network-device>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+GATEWAY="$(get_gateway)"
+NETWORK="$(get_network)"
+MASK="$(get_mask)"
+
+ip link add "$BRIDGE_DEV" type bridge || true
+ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
+ip link set "$BRIDGE_DEV" up
+
+iptables \
+  -t nat \
+  -A POSTROUTING \
+  -s "$(int_to_ip "$NETWORK")/$MASK" \
+  -o "$1" \
+  -j MASQUERADE
