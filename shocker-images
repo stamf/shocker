@@ -14,14 +14,22 @@ cat << USAGE
 USAGE
 }
 
-[ "$#" -eq 1 ] || { usage; exit 1; }
 case "$1" in
   -h|--help ) usage && exit 1 ;;
 esac
+[ "$#" -eq 0 ] || { usage; exit 1; }
 
-printf "IMAGE_ID\t\tSOURCE"
+# check if images exist
+for img in "$btrfs_path"/img_*; do
+  [ -e "$img" ] && break
+  printf 'No images found in %s\n' "$btrfs_path"
+  exit 0
+done
+
+# print list of available images
+printf "IMAGE_ID\t\tSOURCE\n"
 for img in "$btrfs_path"/img_*; do
   img=$(basename "$img")
   img_source="$(cat "$btrfs_path/$img/img.source")"
-  printf "%s\t\t%s" "$img" "$img_source"
+  printf "%s\t\t%s\n" "$img" "$img_source"
 done
