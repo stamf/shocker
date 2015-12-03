@@ -1,0 +1,33 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-init - create an image from a directory
+  Usage: shocker init <directory>
+  Options:
+   -h, --help output usage information
+  Examples:
+   $ shocker init .  # create a new image from current dir
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+uuid="img_$(shuf -i 42002-42254 -n 1)"
+[ -d "$1" ] || { printf "No directory named '%s' exists" "$1"; exit 1; }
+
+[ "$(shocker_check "$uuid")" -eq 0 ] && bocker_run "$@"
+
+btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
+cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
+[ -f "$btrfs_path/$uuid"/img.source ] || {
+  echo "$1" > "$btrfs_path/$uuid"/img.source
+}
+
+printf "Created: %s" "$uuid"
