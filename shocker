@@ -31,11 +31,18 @@ NETWORK=$(addr_to_network "$NETWORK")
 GATEWAY=$((NETWORK + 1))
 
 gen_uuid() {
-  shuf -i 2-$NHOSTS -n 1
+  find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' \
+    | sed 's#^.*/ps_##' \
+    | xargs printf "%010d\n" \
+    | sort \
+    | comm -1 -3 - <(seq -f "%010g" 2 "$1") \
+    | head -1 \
+    | sed 's/^0*//'
 }
 shocker_pre_run() {
-  uuid=$(gen_uuid)
+  uuid=$(gen_uuid "$NHOSTS")
   cntid="ps_$uuid"
+  [[ -z "$uuid" ]] && echo 'No more container id space for this subnet mask' && exit 1
   [[ "$(shocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
   [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& shocker_run "$@" && return
   #TODO uuid conflict could result in infinite loop if all uuids are used
