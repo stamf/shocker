@@ -4,10 +4,9 @@
 cat << USAGE
   Usage: shocker [options] <command>
 
-  Commands:
-    commit, exec, help, image, init,
-    kill, logs, ps, pull, rm, run,
-    spawn
+  commit, cleanup, exec, export, images,
+  init, kill, logs, name, ps, pull, rm,
+  route, run, spawn, stop
 
   Options:
     -h, --help     output usage information

@@ -14,6 +14,24 @@ Docker implemented in shell. Forked from
 - strong focus on usability
 - transparent codebase written in modern POSIX shell
 
+## Usage
+```txt
+  Usage: shocker [options] <command>
+
+  commit, cleanup, exec, export, images,
+  init, kill, logs, name, ps, pull, rm,
+  route, run, spawn, stop
+
+  Options:
+    -h, --help     output usage information
+    -v, --version  output version information
+
+  Examples:
+    shocker pull alpine latest   # fetch the latest alpine linux image
+    shocker init                 # create a new container
+    shocker exec                 # run a command in shocker
+```
+
 ## Prerequisites
 The following packages are needed to run shocker.
 
