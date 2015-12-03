@@ -22,15 +22,15 @@ case "$1" in
 esac
 
 if [ "$(shocker_check "$1")" -ne 0 ]; then
-  printf "No container named '%s' exists" "$1"
+  printf "No container named '%s' exists\n" "$1"
   exit 1
 fi
 
 state=$(get_state "$1")
 case $state in
-  stopped) printf "Container '%s' is already stopped" "$1" ;;
-  crashed) printf "Container '%s' has crashed, use 'shocker-cleanup'" "$1" ;;
-  missing) printf "Container '%s' does not exist" "$1" ;;
+  stopped) printf "Container '%s' is already stopped\n" "$1" ;;
+  crashed) printf "Container '%s' has crashed, use 'shocker-cleanup\n'" "$1" ;;
+  missing) printf "Container '%s' does not exist\n" "$1" ;;
 esac
 
 sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do

@@ -161,7 +161,7 @@ shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <conta
   ln -s "$btrfs_path/$1" "$btrfs_path/$2"
 }
 
-[ "$#" -eq 1 ] || { ./shocker-help; exit 1; }
+[ "$#" -ne 0 ] || { ./shocker-help; exit 1; }
 case "$1" in
   -h|--help ) shift && ./shocker-help && exit 1 ;;
   commit ) shift && shocker_commit "$@" ;;
