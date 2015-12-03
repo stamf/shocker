@@ -13,7 +13,7 @@ cat << USAGE
     -h, --help output usage information
 
   Examples:
-    $ shocker rm 1234  # create a new image from current dir
+    $ shocker rm img_1234  # delete 'img_1234'
 USAGE
 }
 
