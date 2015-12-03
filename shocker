@@ -127,19 +127,8 @@ shocker_exec() {
   ./shocker-exec "$@"
 }
 
-shocker_kill() { #HELP Kill a running container:\nSHOCKER kill <container_id> [<signal>]
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-
-  state=$(get_state "$1")
-  case $state in
-    stopped) echo "Container '$1' is already stopped" ;;
-    crashed) echo -e "Container '$1' is in a crashed state, please use the \x1b[1;33mcleanup\x1b[0m command" ;;
-    missing) echo "Container '$1' does not exist" ;;
-  esac
-
-  sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
-    kill -SIGKILL -- "$proc" 2>/dev/null || true;
-  done
+shocker_kill() {
+  ./shocker-kill "$@"
 }
 
 shocker_stop() { #HELP Stop a running container:\nSHOCKER stop <container_id>

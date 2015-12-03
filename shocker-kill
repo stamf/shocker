@@ -1,0 +1,38 @@
+#!/bin/sh
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-kill - kill a running container
+
+  Usage: shocker kill <container-id> [signal]
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker kill ps_1234 SIGKILL  # terminate container 'ps_1234'
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+if [ "$(shocker_check "$1")" -ne 0 ]; then
+  printf "No container named '%s' exists" "$1"
+  exit 1
+fi
+
+state=$(get_state "$1")
+case $state in
+  stopped) printf "Container '%s' is already stopped" "$1" ;;
+  crashed) printf "Container '%s' has crashed, use 'shocker-cleanup'" "$1" ;;
+  missing) printf "Container '%s' does not exist" "$1" ;;
+esac
+
+sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
+  kill -SIGKILL -- "$proc" 2>/dev/null || true;
+done
