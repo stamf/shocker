@@ -254,7 +254,7 @@ shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <conta
 }
 
 shocker_help() { #HELP Display this message:\nSHOCKER help
-  sed -n "s/^.*#HELP\\s//p;" < "$1" | sed "s/\\\\n/\n\t/g;s/$/\n/;s!SHOCKER!${1/!/\\!}!g"
+  ./shocker-help
 }
 
 [[ -z "${1-}" ]] && shocker_help "$0" && exit

@@ -7,8 +7,8 @@ shocker_check() {
 }
 
 ip_to_int() { #Transform ipv4 address into int
-  local IFS='[./]'
-  set -- "$1"
+  # shellcheck disable=SC2001
+  eval set -- "$(echo "$1" | sed 's|[./]| |g')"
   echo $(($1 * 256**3 + $2 * 256**2 + $3 * 256**1 + $4))
 }
 
@@ -29,8 +29,8 @@ int_to_mac() { #Transform int into mac address
 }
 
 addr_to_network() { #Transforms ip/mask into an int representing the network
-  local IFS=/
-  set -- "$1"
+  # shellcheck disable=SC2001
+  eval set -- "$(echo "$1" | sed 's|/| |')"
   mask=$(((2**$2-1) * 2**(32-$2)))
   addr=$(ip_to_int "$1")
   echo $((addr & mask))
