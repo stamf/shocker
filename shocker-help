@@ -14,6 +14,7 @@ cat << USAGE
     -v, --version  output version information
 
   Examples:
-    shocker init   # create a new container
-    shocker exec   # run a command in shocker
+    shocker pull alpine latest   # fetch the latest alpine linux image
+    shocker init                 # create a new container
+    shocker exec                 # run a command in shocker
 USAGE

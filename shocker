@@ -33,27 +33,6 @@ GATEWAY=$((NETWORK + 1))
 gen_uuid() {
   shuf -i 2-$NHOSTS -n 1
 }
-
-shocker_init () {
-  ./shocker-init "$@"
-}
-
-shocker_pull () {
-  ./shocker-pull "$@"
-}
-
-shocker_rm() {
-  ./shocker-rm "$@"
-}
-
-shocker_images() {
-  ./shocker-images "$@"
-}
-
-shocker_ps() {
-  ./shocker-ps "$@"
-}
-
 shocker_pre_run() {
   uuid=$(gen_uuid)
   cntid="ps_$uuid"
@@ -123,14 +102,6 @@ shocker_run() { #HELP Create a container:\nSHOCKER run <image_id> <command>
   shocker_post_run "$cntid"
 }
 
-shocker_exec() {
-  ./shocker-exec "$@"
-}
-
-shocker_kill() {
-  ./shocker-kill "$@"
-}
-
 shocker_stop() { #HELP Stop a running container:\nSHOCKER stop <container_id>
   [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
 
@@ -190,12 +161,24 @@ shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <conta
   ln -s "$btrfs_path/$1" "$btrfs_path/$2"
 }
 
-shocker_help() { #HELP Display this message:\nSHOCKER help
-  ./shocker-help
-}
-
-[[ -z "${1-}" ]] && shocker_help "$0" && exit
+[ "$#" -eq 1 ] || { ./shocker-help; exit 1; }
 case "$1" in
-  pull|init|rm|images|ps|run|spawn|exec|kill|cleanup|stop|name|logs|route|export|commit) shocker_"$1" "${@:2}" ;;
-  *) shocker_help "$0" ;;
+  -h|--help ) shift && ./shocker-help && exit 1 ;;
+  commit ) shift && shocker_commit "$@" ;;
+  cleanup ) shift && shocker_cleanup "$@" ;;
+  exec ) shift && ./shocker-exec "$@" ;;
+  export ) shift && shocker_export "$@" ;;
+  images ) shift && ./shocker-images "$@" ;;
+  init ) shift && ./shocker-init "$@" ;;
+  kill ) shift && ./shocker-kill "$@" ;;
+  logs ) shift && shocker_logs "$@" ;;
+  name ) shift && shocker_name "$@" ;;
+  ps ) shift && ./shocker-ps "$@" ;;
+  pull ) shift && ./shocker-pull "$@" ;;
+  rm ) shift && ./shocker-rm "$@" ;;
+  route ) shift && shocker_route "$@" ;;
+  run ) shift && shocker_run "$@" ;;
+  spawn ) shift && shocker_spawn "$@" ;;
+  stop ) shift && shocker_stop "$@" ;;
+  * ) shift && ./shocker-help && exit 1 ;;
 esac
