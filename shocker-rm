@@ -1,0 +1,30 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+cgroups='cpu,cpuacct,memory'
+
+usage () {
+cat << USAGE
+  shocker-rm - remove stored images or containers
+  Usage: shocker rm <image-id>|<container-id>
+
+  Options:
+    -h, --help output usage information
+
+  Examples:
+    $ shocker rm 1234  # create a new image from current dir
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+[ "$(shocker_check "$1")" -eq 0 ] || {
+  printf "No container named '%s' exists" "$1"
+  exit 1
+}
+
+btrfs subvolume delete "$btrfs_path"/"$1" > /dev/null
+cgdelete -g "$cgroups":/"$1" > /dev/null 2>&1 || true
+printf "Removed: %s\n" "$1"
