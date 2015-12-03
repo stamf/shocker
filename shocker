@@ -1,51 +1,59 @@
 #!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail; shopt -s nullglob
-btrfs_path='/var/shocker' && cgroups='cpu,cpuacct,memory' && repo='../.shocker-repo';
-#shellcheck disable=SC2015
-[[ $# -gt 0 ]] && while [ "${1:0:2}" == '--' ]; do OPTION=${1:2}; [[ $OPTION =~ = ]] && declare "SHOCKER_${OPTION/=*/}=${OPTION/*=/}" || declare "SHOCKER_${OPTION}=x"; shift; done
+set -o errexit -o nounset -o pipefail
+shopt -s nullglob
+btrfs_path='/var/shocker'
+cgroups='cpu,cpuacct,memory'
+repo='../.shocker-repo'
+
+if [ $# -gt 0 ]; then
+  while [ "${1:0:2}" = '--' ]; do
+    OPTION=${1:2}
+    if [[ $OPTION =~ = ]]; then
+      declare "SHOCKER_${OPTION/=*/}=${OPTION/*=/}"
+    else
+      declare "SHOCKER_${OPTION}=x"
+    fi
+    shift
+  done
+fi
 
 # check if btrfs is mounted and available
 set +e
-[ -d "$btrfs_path" ] || {
+if [ ! -d "$btrfs_path" ]; then
   printf '%s does not exist, creating:\n' "$btrfs_path" >&2
   mkdir -p "$btrfs_path"
-}
+fi
 sudo btrfs filesystem show "$btrfs_path" > /dev/null
-[ "$?" -ne 0 ] && {
+if [ "$?" -ne 0 ]; then
   printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path" >&2
   exit 1
-}
+fi
 set -e
 
 # source utility functions
 . ./utils.sh
 
-# get network configuration
-. ./settings.conf 2>/dev/null || true
-NETWORK=${NETWORK:-10.0.0.0/24}
-BRIDGE_DEV=${BRIDGE_DEV:-bridge0}
-
-MASK=${NETWORK##*/}
-NHOSTS=$((2**(32-MASK)))
-NETWORK=$(addr_to_network "$NETWORK")
-GATEWAY=$((NETWORK + 1))
-
-gen_uuid() {
-  find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' \
-    | sed 's#^.*/ps_##' \
-    | xargs printf "%010d\n" \
-    | sort \
-    | comm -1 -3 - <(seq -f "%010g" 2 "$1") \
-    | head -1 \
-    | sed 's/^0*//'
-}
-
 shocker_pre_run() {
+  GATEWAY="$(get_gateway)"
+  NETWORK="$(get_network)"
+  NHOSTS="$(get_nhosts)"
+  MASK="$(get_mask)"
+
   uuid=$(gen_uuid "$NHOSTS")
   cntid="ps_$uuid"
-  [[ -z "$uuid" ]] && echo 'No more container id space for this subnet mask' >&2 && exit 1
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" >&2 && exit 1
-  [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." >&2 && exit 1
+
+  if [ -z "$uuid" ]; then
+    printf 'No more container id space for this subnet mask\n' >&2
+    exit 1
+  fi
+  if [ "$(shocker_check "$1")" = 1 ]; then
+    echo "No image named '$1' exists" >&2
+    exit 1
+  fi
+  if [ "$(shocker_check "$cntid")" = 0 ]; then
+    echo "UUID conflict, retrying..." >&2
+    exit 1
+  fi
 
   ip="$(int_to_ip $((NETWORK + uuid)))"
   mac="$(int_to_mac "$uuid")"
@@ -71,10 +79,16 @@ shocker_pre_run() {
   cp init "$btrfs_path/$cntid/root/init" || true
 
   cgcreate -g "$cgroups:/$cntid"
-  : "${SHOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$SHOCKER_CPU_SHARE" "$cntid"
-  : "${SHOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((SHOCKER_MEM_LIMIT * 1048576))" "$cntid"
-  #: "${SHOCKER_KMEM_LIMIT:=32}" && cgset -r memory.kmem.limit_in_bytes="$((SHOCKER_KMEM_LIMIT * 1048576))" "$cntid"
-  #: "${SHOCKER_MEMSW_LIMIT:=$SHOCKER_MEM_LIMIT}" && cgset -r memory.memsw.limit_in_bytes="$((SHOCKER_MEMSW_LIMIT * 1048576))" "$cntid"
+  "${SHOCKER_CPU_SHARE:=512}"
+  cgset -r cpu.shares="$SHOCKER_CPU_SHARE" "$cntid"
+  "${SHOCKER_MEM_LIMIT:=512}"
+  cgset -r memory.limit_in_bytes="$((SHOCKER_MEM_LIMIT * 1048576))" "$cntid"
+  #"${SHOCKER_KMEM_LIMIT:=32}"
+  # cgset \
+  # -r memory.kmem.limit_in_bytes="$((SHOCKER_KMEM_LIMIT * 1048576))" "$cntid"
+  #"${SHOCKER_MEMSW_LIMIT:=$SHOCKER_MEM_LIMIT}"
+  # cgset \
+  #-r memory.memsw.limit_in_bytes="$((SHOCKER_MEMSW_LIMIT * 1048576))" "$cntid"
 
   echo "$cntid"
 }
@@ -86,109 +100,58 @@ shocker_post_run() {
   cgdelete -g "$cgroups:/$1" &> /dev/null || true
 }
 
-shocker_spawn() { #HELP Create a container:\nSHOCKER spawn <image_id> <env> <nix-image> <conf-file>
+#HELP Create a container:
+#SHOCKER spawn <image_id> <env> <nix-image> <conf-file>
+shocker_spawn() {
   cntid=$(shocker_pre_run "$@")
 
   service="$3"
   instance_tag="$btrfs_path/$cntid/var/tmp/instance-tag"
+  service_config="$btrfs_path/$cntid/etc/service-config"
 
   tar xzf "$repo/${service}.tgz" -C "$btrfs_path/$cntid"
   pushd "$repo/api-config-files" >/dev/null || exit
   mkdir -p "$btrfs_path/$cntid/etc/service-config"
-  git archive master | tar -x --strip-components=2 -C "$btrfs_path/$cntid/etc/service-config" "$service/$2"
+  git archive master \
+    | tar -x --strip-components=2 -C "$service_config" "$service/$2"
   popd >/dev/null
 
-  echo -e "$(date +%s.%N)\t$2\t$service\t$(cat "$btrfs_path/$cntid/host-ip-addr")" > "$instance_tag"
+  now=$(date +%s.%N)
+  ipaddr=$(cat "$btrfs_path/$cntid/host-ip-addr")
+  printf '%s\t%s\t%s\t%s\t%s' "$now" "$2" "$service" "$ipaddr" \
+    > "$instance_tag"
+
   shocker_execute "$cntid" "$service" -c "/etc/service-config/$4" || true
   rm -f "$instance_tag"
 
   shocker_post_run "$cntid"
 }
 
-shocker_run() { #HELP Create a container:\nSHOCKER run <image_id> <command>
+#HELP Create a container:\nSHOCKER run <image_id> <command>
+shocker_run() {
   cntid=$(shocker_pre_run "$@")
   shocker_execute "$cntid" "${@:2}" || true
   shocker_post_run "$cntid"
 }
 
-shocker_stop() { #HELP Stop a running container:\nSHOCKER stop <container_id>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
-
-  state=$(get_state "$1")
-  case $state in
-    stopped) echo "Container '$1' is already stopped" >&2 ;;
-    crashed) echo -e "Container '$1' is in a crashed state, please use the \x1b[1;33mcleanup\x1b[0m command" >&2 ;;
-    missing) echo "Container '$1' does not exist" >&2 ;;
-  esac
-
-  sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
-    kill -SIGTERM -- "$proc" 2>/dev/null || true;
-  done
-}
-
-shocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth devices:\nSHOCKER cleanup
-  #shellcheck disable=SC2012
-  ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
-    ps=$(basename "$ps")
-    if [[ "$(get_state "$ps")" == "crashed" ]]; then
-      findmnt -r | grep "^$ps/" | cut -f1 -d' ' | xargs umount || true
-      ip link del "veth0_$ps" >/dev/null 2>&1 || true
-      ip netns del "netns_$ps" >/dev/null 2>&1 || true
-      cgdelete -g "$cgroups:/$ps" >/dev/null 2>&1 || true
-      echo "Cleaned '$ps'"
-    fi
-  done
-}
-
-shocker_logs() { #HELP View logs from a container:\nSHOCKER logs <container_id>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
-  cat "$btrfs_path/$1/$1.log"
-}
-
-shocker_route() { #HELP Ensure outgoing route exists for containers:\nSHOCKER route <network-device>
-  ip link add "$BRIDGE_DEV" type bridge || true
-  ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
-  ip link set "$BRIDGE_DEV" up
-
-  iptables -t nat -A POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" -o "$1" -j MASQUERADE
-}
-
-shocker_export() { #HELP Expose containers port through host:\nSHOCKER export <container_id> <port> <host_port>
-  iptables -t nat -A PREROUTING -p tcp -m tcp --dport "$3" -j DNAT \
-    --to-destination "$(cat "$btrfs_path/$1/host-ip-addr"):$2" \
-    -m comment --comment "host:$3 -> $1:$2"
-}
-
-shocker_commit() { #HELP Commit a container to an image:\nSHOCKER commit <container_id> <image_id>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
-  [[ "$(shocker_check "$2")" == 1 ]] && echo "No image named '$2' exists" >&2 && exit 1
-  shocker_rm "$2" && btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$2" > /dev/null
-  echo "Created: $2"
-}
-
-shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <container_id> <name>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
-  ln -s "$btrfs_path/$1" "$btrfs_path/$2"
-}
-
 [ "$#" -ne 0 ] || { ./shocker-help; exit 1; }
 case "$1" in
   -h|--help ) shift && ./shocker-help && exit 1 ;;
-  commit    ) shift && shocker_commit "$@" ;;
-  cleanup   ) shift && shocker_cleanup "$@" ;;
+  commit    ) shift && ./shocker-commit "$@" ;;
+  cleanup   ) shift && ./shocker-cleanup "$@" ;;
   exec      ) shift && ./shocker-exec "$@" ;;
-  export    ) shift && shocker_export "$@" ;;
+  export    ) shift && ./shocker-export "$@" ;;
   images    ) shift && ./shocker-images "$@" ;;
   init      ) shift && ./shocker-init "$@" ;;
   kill      ) shift && ./shocker-kill "$@" ;;
-  logs      ) shift && shocker_logs "$@" ;;
-  name      ) shift && shocker_name "$@" ;;
+  logs      ) shift && ./shocker-logs "$@" ;;
+  name      ) shift && ./shocker-name "$@" ;;
   ps        ) shift && ./shocker-ps "$@" ;;
   pull      ) shift && ./shocker-pull "$@" ;;
   rm        ) shift && ./shocker-rm "$@" ;;
-  route     ) shift && shocker_route "$@" ;;
+  route     ) shift && ./shocker-route "$@" ;;
   run       ) shift && shocker_run "$@" ;;
   spawn     ) shift && shocker_spawn "$@" ;;
-  stop      ) shift && shocker_stop "$@" ;;
+  stop      ) shift && ./shocker-stop "$@" ;;
   *         ) shift && ./shocker-help && exit 1 ;;
 esac

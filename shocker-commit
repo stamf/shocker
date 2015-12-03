@@ -1,0 +1,38 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-commit - commit a container to an image
+
+  Usage: shocker commit <container_id> <image_id>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker commit 1235 6787  # commit a container to an image
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+if [ "$(shocker_check "$1")" = 1 ]; then
+  echo "No container named '$1' exists" >&2
+  exit 1
+fi
+
+if [ "$(shocker_check "$2")" = 1 ]; then
+  echo "No image named '$2' exists" >&2
+  exit 1
+fi
+
+p1="$btrfs_path/$1"
+p2="$btrfs_path/$2"
+shocker_rm "$2" && btrfs subvolume snapshot "$p1" "$p2" > /dev/null
+echo "Created: $2"

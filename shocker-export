@@ -1,0 +1,27 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-stop - stop a running container
+
+  Usage: shocker stop <container_id>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker stop 1235   # stop container '1235'
+USAGE
+}
+
+[ "$#" -eq 3 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+iptables -t nat -A PREROUTING -p tcp -m tcp --dport "$3" -j DNAT \
+  --to-destination "$(cat "$btrfs_path/$1/host-ip-addr"):$2" \
+  -m comment --comment "host:$3 -> $1:$2"

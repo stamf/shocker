@@ -1,0 +1,38 @@
+#!/bin/sh
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-stop - stop a running container
+
+  Usage: shocker stop <container_id>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker stop 1235   # stop a running container
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+if [ "$(shocker_check "$1")" -eq 1 ]; then
+  printf "No container named '%s' exists\n" "$1" >&2
+  exit 1
+fi
+
+state=$(get_state "$1")
+case $state in
+  stopped) printf "Container '%s' is already stopped\n" "$1" >&2 ;;
+  crashed) printf "Container '%s' crashed, 'shocker-cleanup\n" "$1" >&2 ;;
+  missing) printf "Container '%s' does not exist\n" "$1" >&2 ;;
+esac
+
+sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
+  kill -SIGTERM -- "$proc" 2>/dev/null || true;
+done

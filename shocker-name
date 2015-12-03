@@ -1,0 +1,26 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-name - give a symbolic name to a container
+
+  Usage: shocker name <container_id> <name>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker 1235 dynomite   # name a container
+USAGE
+}
+
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+[ "$#" -eq 2 ] || { usage; exit 1; }
+
+[ "$(shocker_check "$1")" = 1 ] && echo "No container named '$1' exists" >&2 && exit 1
+ln -s "$btrfs_path/$1" "$btrfs_path/$2"

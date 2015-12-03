@@ -1,0 +1,30 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+# source helper ut
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-logs - view logs from a container
+
+  Usage: shocker logs <container_id>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+if [ "$(shocker_check "$1")" = 1 ]; then
+  echo "No container named '$1' exists" >&2
+  exit 1
+fi
+
+cat "$btrfs_path/$1/$1.log"
