@@ -1,0 +1,40 @@
+#!/bin/bash
+btrfs_path='/var/shocker'
+
+usage () {
+cat << USAGE
+  shocker-exec - execute a command in a running container
+
+  Usage: shocker exec <container_id> <command>
+
+  Options:
+   -h, --help   output usage information
+
+  Examples:
+   $ shocker exec ps_1234 'ls ~/'
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+if [ "$(shocker_check "$1")" -eq 1 ]; then
+  echo "No container named '$1' exists"
+  exit 1
+fi
+
+fn_mine () {
+  ppid="$(pgrep -f "unshare.*$1")"
+  ps ao ppid,pid \
+    | awk -v ppid="$ppid" '$1 == ppid {print $2}'
+}
+
+cid="$(fn_mine "$1")"
+if [[ ! "$cid" =~ ^\ *[0-9]+$ ]]; then
+  echo "Container '$1' exists but is not running"
+  exit 1
+fi
+
+nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"

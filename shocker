@@ -123,11 +123,8 @@ shocker_run() { #HELP Create a container:\nSHOCKER run <image_id> <command>
   shocker_post_run "$cntid"
 }
 
-shocker_exec() { #HELP Execute a command in a running container:\nSHOCKER exec <container_id> <command>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-  cid="$(ps ao ppid,pid | awk -v ppid="$(pgrep -f "unshare.*$1")" '$1 == ppid {print $2}')"
-  [[ ! "$cid" =~ ^\ *[0-9]+$ ]] && echo "Container '$1' exists but is not running" && exit 1
-  nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
+shocker_exec() {
+  ./shocker-exec "$@"
 }
 
 shocker_kill() { #HELP Kill a running container:\nSHOCKER kill <container_id> [<signal>]
