@@ -17,49 +17,11 @@ sudo btrfs filesystem show "$btrfs_path" > /dev/null
 }
 set -e
 
-ip_to_int() { #Transform ipv4 address into int
-  local IFS='[./]'
-  #shellcheck disable=SC2086
-  set -- $1
-  echo $(($1 * 256**3 + $2 * 256**2 + $3 * 256**1 + $4))
-}
+# source utility functions
+. ./utils.sh
 
-int_to_ip() { #Transform int into ipv4 address
-  printf "%d.%d.%d.%d" \
-    $((($1 & 256**4-1) / 256**3)) \
-    $((($1 & 256**3-1) / 256**2)) \
-    $((($1 & 256**2-1) / 256**1)) \
-    $(( $1 & 256**1-1))
-}
-
-int_to_mac() { #Transform int into mac address
-  printf "02:42:%02x:%02x:%02x:%02x" \
-    $((($1 & 256**4-1) / 256**3)) \
-    $((($1 & 256**3-1) / 256**2)) \
-    $((($1 & 256**2-1) / 256**1)) \
-    $(( $1 & 256**1-1))
-}
-
-addr_to_network() { #Transforms ip/mask into an int representing the network
-  local IFS=/
-  #shellcheck disable=SC2086
-  set -- $1
-  mask=$(((2**$2-1) * 2**(32-$2)))
-  addr=$(ip_to_int "$1")
-  echo $((addr & mask))
-}
-
-addr_to_hostid() { #Transforms ip/mask into an int representing the host
-  local IFS=/
-  #shellcheck disable=SC2086
-  set -- $1
-  mask=$((2**(32-$2)-1))
-  addr=$(ip_to_int "$1")
-  echo $((addr & mask))
-}
-
-#shellcheck disable=SC1091
-source ./settings.conf 2>/dev/null || true
+# get network configuration
+. ./settings.conf 2>/dev/null || true
 NETWORK=${NETWORK:-10.0.0.0/24}
 BRIDGE_DEV=${BRIDGE_DEV:-bridge0}
 
@@ -72,10 +34,6 @@ gen_uuid() {
   shuf -i 2-$NHOSTS -n 1
 }
 
-shocker_check() {
-  btrfs subvolume list "$btrfs_path" | grep -qw "$1" && echo 0 || echo 1
-}
-
 shocker_init () {
   ./shocker-init "$@"
 }
@@ -85,28 +43,7 @@ shocker_pull () {
 }
 
 shocker_rm() {
-  usage () {
-    printf "  shocker-rm - remove stored images or containers\n"
-    printf "  Usage: shocker rm <image-id>|<container-id>\n\n"
-    printf "  Options:\n"
-    printf "    -h, --help output usage information\n\n"
-    printf "  Examples:\n"
-    printf "    $ shocker rm 1234  # create a new image from current dir\n"
-  }
-
-  [ "$#" -eq 1 ] || { usage; exit 1; }
-  case "$1" in
-    -h|--help ) usage && exit 1 ;;
-  esac
-
-  [ "$(shocker_check "$1")" -eq 0 ] || {
-    printf "No container named '%s' exists" "$1"
-    exit 1
-  }
-
-  btrfs subvolume delete "$btrfs_path"/"$1" > /dev/null
-  cgdelete -g "$cgroups":/"$1" &> /dev/null || true
-  printf "Removed: %s\n" "$1"
+  ./shocker-rm "$@"
 }
 
 shocker_images() { #HELP List images:\nSHOCKER images
