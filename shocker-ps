@@ -1,0 +1,43 @@
+#!/bin/sh
+btrfs_path='/var/shocker'
+
+usage () {
+cat << USAGE
+  shocker-ps - list containers
+  Usage: shocker ps
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker ps   # list container
+USAGE
+}
+
+[ "$#" -eq 1 ] || { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+file_count="$(find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' | wc -l)"
+if [ "$file_count" -eq 0 ]; then
+  printf "No running containers\n"
+  exit 0
+fi
+
+printf "%s\t\t%s\t\t%s\n" 'CONTAINER_ID' 'STATE' 'COMMAND'
+
+for ps in "$btrfs_path"/ps_*; do
+  [ -e "$ps" ] || break
+
+  ps=$(basename "$ps")
+  state=$(get_state "$ps")
+
+  case $state in
+    running) state="\x1b[1;32m$state\x1b[0m";;
+    crashed) state="\x1b[1;31m$state\x1b[0m";;
+  esac
+
+  cmd="$(cat "$btrfs_path/$ps/$ps.cmd")"
+  printf "%s\t\t%b\t\t%s\n" "$ps" "$state" "$cmd"
+done
