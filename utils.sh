@@ -1,6 +1,6 @@
 #!/bin/bash
 
-btrfs_path='/var/shocker'
+btrfs_path='/var/shocker' && cgroups='cpu,cpuacct,memory'
 
 shocker_check() {
   btrfs subvolume list "$btrfs_path" | grep -qw "$1" && echo 0 || echo 1
@@ -56,4 +56,14 @@ get_state() {
   [[ $((cgdef | procs | netns | veth)) -eq 0 ]] && state=stopped
 
   echo $state
+}
+
+shocker_execute() {
+  cntid="$1"
+  shift;
+  cgexec -g "$cgroups:$cntid" \
+    ip netns exec netns_"$cntid" \
+    unshare -fmuip --mount-proc \
+    chroot "$btrfs_path/$cntid" \
+    /bin/sh -c "source /root/init; $*" || true
 }

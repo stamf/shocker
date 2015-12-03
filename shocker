@@ -92,16 +92,6 @@ shocker_pre_run() {
   echo "$cntid"
 }
 
-shocker_execute() {
-  cntid="$1"
-  shift;
-  cgexec -g "$cgroups:$cntid" \
-    ip netns exec netns_"$cntid" \
-    unshare -fmuip --mount-proc \
-    chroot "$btrfs_path/$cntid" \
-    /bin/sh -c "source /root/init; $*" || true
-}
-
 shocker_post_run() {
   ip link del dev veth0_"$1"
   ip netns del netns_"$1"
