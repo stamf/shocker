@@ -24,7 +24,7 @@ esac
 
 shocker_check "$1" > /dev/null
 if [ "$?" -ne 0 ]; then
-  printf "No container named '%s' exists\n" "$1"
+  printf "No container named '%s' exists\n" "$1" >&2
   exit 1
 fi
 

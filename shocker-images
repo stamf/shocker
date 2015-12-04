@@ -22,7 +22,7 @@ esac
 # check if images exist
 for img in "$btrfs_path"/img_*; do
   [ -e "$img/img.source" ] && break
-  printf 'No images found in %s\n' "$btrfs_path"
+  printf 'No images found in %s\n' "$btrfs_path" >&2
   exit 0
 done
 

@@ -21,7 +21,7 @@ case "$1" in
 esac
 
 if [ "$(shocker_check "$1")" -eq 1 ]; then
-  echo "No container named '$1' exists"
+  echo "No container named '$1' exists" >&2
   exit 1
 fi
 

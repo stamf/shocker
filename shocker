@@ -7,12 +7,12 @@ btrfs_path='/var/shocker' && cgroups='cpu,cpuacct,memory' && repo='../.shocker-r
 # check if btrfs is mounted and available
 set +e
 [ -d "$btrfs_path" ] || {
-  printf '%s does not exist, creating:\n' "$btrfs_path"
+  printf '%s does not exist, creating:\n' "$btrfs_path" >&2
   mkdir -p "$btrfs_path"
 }
 sudo btrfs filesystem show "$btrfs_path" > /dev/null
 [ "$?" -ne 0 ] && {
-  printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path"
+  printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path" >&2
   exit 1
 }
 set -e
@@ -39,12 +39,13 @@ gen_uuid() {
     | head -1 \
     | sed 's/^0*//'
 }
+
 shocker_pre_run() {
   uuid=$(gen_uuid "$NHOSTS")
   cntid="ps_$uuid"
-  [[ -z "$uuid" ]] && echo 'No more container id space for this subnet mask' && exit 1
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
-  [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." && return #&& shocker_run "$@" && return
+  [[ -z "$uuid" ]] && echo 'No more container id space for this subnet mask' >&2 && exit 1
+  [[ "$(shocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" >&2 && exit 1
+  [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." >&2 && return #&& shocker_run "$@" && return
   #TODO uuid conflict could result in infinite loop if all uuids are used
   ip="$(int_to_ip $((NETWORK + uuid)))"
   mac="$(int_to_mac "$uuid")"
@@ -110,13 +111,13 @@ shocker_run() { #HELP Create a container:\nSHOCKER run <image_id> <command>
 }
 
 shocker_stop() { #HELP Stop a running container:\nSHOCKER stop <container_id>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
 
   state=$(get_state "$1")
   case $state in
-    stopped) echo "Container '$1' is already stopped" ;;
-    crashed) echo -e "Container '$1' is in a crashed state, please use the \x1b[1;33mcleanup\x1b[0m command" ;;
-    missing) echo "Container '$1' does not exist" ;;
+    stopped) echo "Container '$1' is already stopped" >&2 ;;
+    crashed) echo -e "Container '$1' is in a crashed state, please use the \x1b[1;33mcleanup\x1b[0m command" >&2 ;;
+    missing) echo "Container '$1' does not exist" >&2 ;;
   esac
 
   sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
@@ -129,16 +130,16 @@ shocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth devices:\n
   ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
     ps=$(basename "$ps")
     if [[ "$(get_state "$ps")" == "crashed" ]]; then
-      ip link del "veth0_$ps" &>/dev/null || true
-      ip netns del "netns_$ps" &>/dev/null || true
-      cgdelete -g "$cgroups:/$ps" &>/dev/null || true
+      ip link del "veth0_$ps" >/dev/null 2>&1 || true
+      ip netns del "netns_$ps" >/dev/null 2>&1 || true
+      cgdelete -g "$cgroups:/$ps" >/dev/null 2>&1 || true
       echo "Cleaned '$ps'"
     fi
   done
 }
 
 shocker_logs() { #HELP View logs from a container:\nSHOCKER logs <container_id>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
   cat "$btrfs_path/$1/$1.log"
 }
 
@@ -157,14 +158,14 @@ shocker_export() { #HELP Expose containers port through host:\nSHOCKER export <c
 }
 
 shocker_commit() { #HELP Commit a container to an image:\nSHOCKER commit <container_id> <image_id>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-  [[ "$(shocker_check "$2")" == 1 ]] && echo "No image named '$2' exists" && exit 1
+  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
+  [[ "$(shocker_check "$2")" == 1 ]] && echo "No image named '$2' exists" >&2 && exit 1
   shocker_rm "$2" && btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$2" > /dev/null
   echo "Created: $2"
 }
 
 shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <container_id> <name>
-  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
+  [[ "$(shocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" >&2 && exit 1
   ln -s "$btrfs_path/$1" "$btrfs_path/$2"
 }
 
