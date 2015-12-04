@@ -1,23 +1,19 @@
 #!/bin/sh
 btrfs_path='/var/shocker'
 
+. ./utils.sh
+
 usage () {
 cat << USAGE
   shocker-ps - list containers
   Usage: shocker ps
-
-  Options:
-   -h, --help output usage information
 
   Examples:
    $ shocker ps   # list container
 USAGE
 }
 
-[ "$#" -eq 1 ] || { usage; exit 1; }
-case "$1" in
-  -h|--help ) usage && exit 1 ;;
-esac
+[ "$#" -eq 0 ] || { usage; exit 1; }
 
 file_count="$(find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' | wc -l)"
 if [ "$file_count" -eq 0 ]; then
