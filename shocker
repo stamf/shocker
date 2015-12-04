@@ -171,21 +171,21 @@ shocker_name() { #HELP Give a symbolic name to a container:\nSHOCKER name <conta
 [ "$#" -ne 0 ] || { ./shocker-help; exit 1; }
 case "$1" in
   -h|--help ) shift && ./shocker-help && exit 1 ;;
-  commit ) shift && shocker_commit "$@" ;;
-  cleanup ) shift && shocker_cleanup "$@" ;;
-  exec ) shift && ./shocker-exec "$@" ;;
-  export ) shift && shocker_export "$@" ;;
-  images ) shift && ./shocker-images "$@" ;;
-  init ) shift && ./shocker-init "$@" ;;
-  kill ) shift && ./shocker-kill "$@" ;;
-  logs ) shift && shocker_logs "$@" ;;
-  name ) shift && shocker_name "$@" ;;
-  ps ) shift && ./shocker-ps "$@" ;;
-  pull ) shift && ./shocker-pull "$@" ;;
-  rm ) shift && ./shocker-rm "$@" ;;
-  route ) shift && shocker_route "$@" ;;
-  run ) shift && shocker_run "$@" ;;
-  spawn ) shift && shocker_spawn "$@" ;;
-  stop ) shift && shocker_stop "$@" ;;
-  * ) shift && ./shocker-help && exit 1 ;;
+  commit    ) shift && shocker_commit "$@" ;;
+  cleanup   ) shift && shocker_cleanup "$@" ;;
+  exec      ) shift && ./shocker-exec "$@" ;;
+  export    ) shift && shocker_export "$@" ;;
+  images    ) shift && ./shocker-images "$@" ;;
+  init      ) shift && ./shocker-init "$@" ;;
+  kill      ) shift && ./shocker-kill "$@" ;;
+  logs      ) shift && shocker_logs "$@" ;;
+  name      ) shift && shocker_name "$@" ;;
+  ps        ) shift && ./shocker-ps "$@" ;;
+  pull      ) shift && ./shocker-pull "$@" ;;
+  rm        ) shift && ./shocker-rm "$@" ;;
+  route     ) shift && shocker_route "$@" ;;
+  run       ) shift && shocker_run "$@" ;;
+  spawn     ) shift && shocker_spawn "$@" ;;
+  stop      ) shift && shocker_stop "$@" ;;
+  *         ) shift && ./shocker-help && exit 1 ;;
 esac
