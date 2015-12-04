@@ -80,6 +80,7 @@ shocker_pre_run() {
 }
 
 shocker_post_run() {
+  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount || true
   ip link del dev veth0_"$1"
   ip netns del netns_"$1"
   cgdelete -g "$cgroups:/$1" &> /dev/null || true
@@ -130,6 +131,7 @@ shocker_cleanup() { #HELP Cleanup unused cgroups, namespaces and veth devices:\n
   ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
     ps=$(basename "$ps")
     if [[ "$(get_state "$ps")" == "crashed" ]]; then
+      findmnt -r | grep "^$ps/" | cut -f1 -d' ' | xargs umount || true
       ip link del "veth0_$ps" >/dev/null 2>&1 || true
       ip netns del "netns_$ps" >/dev/null 2>&1 || true
       cgdelete -g "$cgroups:/$ps" >/dev/null 2>&1 || true
