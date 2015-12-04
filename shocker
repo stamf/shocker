@@ -45,8 +45,8 @@ shocker_pre_run() {
   cntid="ps_$uuid"
   [[ -z "$uuid" ]] && echo 'No more container id space for this subnet mask' >&2 && exit 1
   [[ "$(shocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" >&2 && exit 1
-  [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." >&2 && return #&& shocker_run "$@" && return
-  #TODO uuid conflict could result in infinite loop if all uuids are used
+  [[ "$(shocker_check "$cntid")" == 0 ]] && echo "UUID conflict, retrying..." >&2 && exit 1
+
   ip="$(int_to_ip $((NETWORK + uuid)))"
   mac="$(int_to_mac "$uuid")"
   gwip="$(int_to_ip "$GATEWAY")"
