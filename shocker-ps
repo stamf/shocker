@@ -21,19 +21,26 @@ if [ "$file_count" -eq 0 ]; then
   exit 0
 fi
 
-printf "%s\t\t%s\t\t%s\n" 'CONTAINER_ID' 'STATE' 'COMMAND'
+printf "%-12s    %8s    %-18s    %s\n" 'CONTAINER_ID' 'STATE' 'IP' 'COMMAND'
 
 for ps in "$btrfs_path"/ps_*; do
   [ -e "$ps" ] || break
 
   ps=$(basename "$ps")
   state=$(get_state "$ps")
+  ip=-
 
   case $state in
-    running) state="\x1b[1;32m$state\x1b[0m";;
-    crashed) state="\x1b[1;31m$state\x1b[0m";;
+    running)
+      ansi="1;32"
+      ip=$(ip netns exec "netns_$ps" ip addr 2>/dev/null \
+        | sed -n "s/.*inet \([^ ]\+\) .* veth1_$ps/\1/p" \
+        | tr -d "\n")
+      ;;
+    crashed) ansi="1;31";;
+    *      ) ansi="0";;
   esac
 
   cmd="$(cat "$btrfs_path/$ps/$ps.cmd")"
-  printf "%s\t\t%b\t\t%s\n" "$ps" "$state" "$cmd"
+  printf "%-12s    \x1b[%sm%8s\x1b[0m    %-18s    %s\n" "$ps" "$ansi" "$state" "$ip" "$cmd"
 done
