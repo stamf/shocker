@@ -27,6 +27,7 @@ Docker implemented in shell. Forked from
     -v, --version  output version information
 
   Examples:
+    $ shocker pull -h              # output usage for the pull command
     $ shocker pull alpine latest   # fetch the latest alpine linux image
     $ shocker images               # list local images
     $ shocker run img_1235 ash     # start an ash shell from an image
