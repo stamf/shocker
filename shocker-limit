@@ -1,0 +1,111 @@
+#!/bin/sh
+
+. ./utils.sh
+
+usage () {
+cat << USAGE
+  shocker-limit - limits management
+  Usage: shocker limit
+
+  Examples:
+   $ shocker limit show  # list all cgroup+quota settings
+   $ shocker limit show <id> # list container cgroup+quota settings
+   $ shocker limit set  <id>
+       -s, --cpu-shares   cpu shares limit
+       -u, --umem-limit   user memory limit (bytes)
+       -m, --memsw-limit  user memory + swap limit (bytes)
+USAGE
+}
+
+cg_show() {
+  if [ "$#" -eq 0 ]; then
+    #shellcheck disable=SC2039
+    target="$(find /sys/fs/cgroup/* -type d -name 'ps_*' -exec basename {} \; \
+      | sort | uniq)"
+  else
+    [ "$(get_state "$1")" != "running" ] && printf "Container '%s' is not running\n" "$1" >&2 && exit 1
+    target="$1"
+    shift;
+  fi
+
+  if [ "$(echo "$target" | wc -l)" -eq 0 ]; then
+    printf "No running containers\n" >&2
+    exit 1
+  fi
+
+  printf "%-12s  %10s  %23s  %23s\n" \
+    ' ' ' ' \
+    'USER_MEM' \
+    'USER+SWAP_MEM'
+  printf "%-12s  %10s  %7s %7s %7s  %7s %7s %7s\n" \
+    'CONTAINER_ID' 'CPU_SHARES' \
+    'CURR' 'PEAK' 'LIMIT' \
+    'CURR' 'PEAK' 'LIMIT'
+
+  #shellcheck disable=SC2039
+  echo "$target" | while read -r ps; do
+      state=$(get_state "$ps")
+      [ "$state" != "running" ] && continue;
+      cgget -n "$ps" \
+        -r cpu.shares \
+        -r memory.usage_in_bytes \
+        -r memory.max_usage_in_bytes \
+        -r memory.limit_in_bytes \
+        -r memory.memsw.usage_in_bytes \
+        -r memory.memsw.max_usage_in_bytes \
+        -r memory.memsw.limit_in_bytes \
+        | sed 's/.*: //' \
+        | sed ':a;N;s/\n/ /;ta' \
+        | awk -v id="$ps" '
+      function sz(b) {
+        if(b == 0) { return "0b"; }
+        s="bkmgtpe";
+        i=log(b)/log(1024);
+        return sprintf("%.1f%s", b/(1024^int(i)), substr(s, int(i) + 1, 1));
+      } {
+        printf("%-12s  %10d  %7s %7s %7s  %7s %7s %7s\n", \
+          id, $1, \
+          sz($2), sz($3), sz($4), \
+          sz($5), sz($6), sz($7))
+      }'
+    done
+}
+
+cg_set() {
+  ps="$1"
+  state=$(get_state "$ps")
+  [ "$state" != "running" ] && printf "Container '%s' is not running\n" "$ps" >&2 && exit 1;
+
+  shift;
+
+  getopt -T >/dev/null
+  if [ $? -eq 4 ]; then
+    eval set -- "$(getopt -n "$0" --long cpu-shares:,umem-limit:,memsw-limit: --options s:u:m: -- "$@")"
+  else
+    eval set -- "$(getopt -n "$0" s:u:m: -- "$@")"
+  fi
+
+  while :; do
+    case "$1" in
+      -s | --cpu-shares )
+        cgset -r cpu.shares="$2" "$ps";
+        shift 2;;
+      -u | --umem-limit )
+        cgset -r memory.limit_in_bytes="$2" "$ps";
+        shift 2;;
+      -m | --memsw-limit)
+        cgset -r memory.memsw.limit_in_bytes="$2" "$ps";
+        shift 2;;
+      --                ) break ;;
+      *                 ) break ;;
+    esac
+  done
+}
+
+[ "$#" -eq 0 ] && { usage; exit 0; }
+
+case "$1" in
+  show) shift; cg_show "$@";;
+  set ) shift; cg_set "$@";;
+  *   ) usage; exit 0;;
+esac

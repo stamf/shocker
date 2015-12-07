@@ -144,8 +144,9 @@ case "$1" in
   images    ) shift && ./shocker-images "$@" ;;
   init      ) shift && ./shocker-init "$@" ;;
   kill      ) shift && ./shocker-kill "$@" ;;
-  logs      ) shift && ./shocker-logs "$@" ;;
-  name      ) shift && ./shocker-name "$@" ;;
+  limit     ) shift && ./shocker-limit "$@" ;;
+  logs      ) shift && shocker_logs "$@" ;;
+  name      ) shift && shocker_name "$@" ;;
   ps        ) shift && ./shocker-ps "$@" ;;
   pull      ) shift && ./shocker-pull "$@" ;;
   rm        ) shift && ./shocker-rm "$@" ;;
