@@ -95,6 +95,11 @@ get_gateway () {
   echo $((NETWORK + 1))
 }
 
+get_bridge_dev () {
+  . ./settings.conf 2> /dev/null
+  echo "$BRIDGE_DEV"
+}
+
 gen_uuid() {
   find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' \
     | sed 's#^.*/ps_##' \

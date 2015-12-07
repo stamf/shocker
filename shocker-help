@@ -13,7 +13,7 @@ cat << USAGE
     -v, --version  output version information
 
   Examples:
-    shocker pull alpine latest   # fetch the latest alpine linux image
-    shocker init                 # create a new container
-    shocker exec                 # run a command in shocker
+    $ shocker pull alpine latest   # fetch the latest alpine linux image
+    $ shocker images               # list local images
+    $ shocker run img_1235 ash     # start an ash shell from an image
 USAGE

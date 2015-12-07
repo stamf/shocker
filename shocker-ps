@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 btrfs_path='/var/shocker'
 
 . ./utils.sh
