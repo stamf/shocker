@@ -33,6 +33,26 @@ set -e
 # source utility functions
 . ./utils.sh
 
+usage () {
+cat << USAGE
+  Usage: shocker [options] <command>
+
+  commit, cleanup, exec, export, images,
+  init, kill, limit, logs, name, ps,
+  pull, rm, route, run, spawn, stop
+
+  Options:
+    -h, --help     output usage information
+    -v, --version  output version information
+
+  Examples:
+    $ shocker pull -h              # output usage for the pull command
+    $ shocker pull alpine latest   # fetch the latest alpine linux image
+    $ shocker images               # list local images
+    $ shocker run img_1235 ash     # start an ash shell from an image
+USAGE
+}
+
 shocker_pre_run() {
   BRIDGE_DEV="$(get_bridge_dev)"
   GATEWAY="$(get_gateway)"
@@ -137,7 +157,7 @@ shocker_run() {
 
 [ "$#" -ne 0 ] || { ./shocker-help; exit 1; }
 case "$1" in
-  -h|--help ) shift && ./shocker-help && exit 1 ;;
+  -h|--help ) usage && exit 0 ;;
   commit    ) shift && ./shocker-commit "$@" ;;
   cleanup   ) shift && ./shocker-cleanup "$@" ;;
   exec      ) shift && ./shocker-exec "$@" ;;
