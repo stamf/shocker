@@ -34,6 +34,7 @@ set -e
 . ./utils.sh
 
 shocker_pre_run() {
+  BRIDGE_DEV="$(get_bridge_dev)"
   GATEWAY="$(get_gateway)"
   NETWORK="$(get_network)"
   NHOSTS="$(get_nhosts)"
@@ -79,9 +80,9 @@ shocker_pre_run() {
   cp init "$btrfs_path/$cntid/root/init" || true
 
   cgcreate -g "$cgroups:/$cntid"
-  "${SHOCKER_CPU_SHARE:=512}"
+  : "${SHOCKER_CPU_SHARE:=512}"
   cgset -r cpu.shares="$SHOCKER_CPU_SHARE" "$cntid"
-  "${SHOCKER_MEM_LIMIT:=512}"
+  : "${SHOCKER_MEM_LIMIT:=512}"
   cgset -r memory.limit_in_bytes="$((SHOCKER_MEM_LIMIT * 1048576))" "$cntid"
   #"${SHOCKER_KMEM_LIMIT:=32}"
   # cgset \
