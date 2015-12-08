@@ -102,5 +102,9 @@ $ sudo mkdir /tmp
 $ sudo chmod 1777 /tmp   # open to everyone + set sticky bit
 ```
 
+### Error: argument "x" is wrong: Device does not exist
+This means that a network device is not found. To enable it run `shocker route
+<devicename>` to setup `iptables` rules and link the device.
+
 ## License
 GPL-3
