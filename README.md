@@ -72,8 +72,11 @@ That means we don't have a `btrfs` filesystem mounted, so let's create one!
 From a file! Because that's easier than doing partitions!
 ```sh
 # create a new filesystem from an empty file
+# skip this step if mounting an actual device
 $ dd if=/dev/zero of=btrfs-hdd.img bs=1G count=2
 $ sudo losetup loop0 btrfs-hdd.img
+
+# mount the filesystem
 $ sudo mkfs.btrfs /dev/loop0
 
 # create `/var/shocker` if it does not exist
