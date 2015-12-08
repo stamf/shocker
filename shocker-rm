@@ -1,8 +1,10 @@
 #!/bin/sh
 btrfs_path='/var/shocker'
 cgroups='cpu,cpuacct,memory'
+dirname=$(dirname "$(readlink -f "$0")")
 
-. ./utils.sh
+# source helper utils
+. "$dirname"/utils.sh
 
 usage () {
 cat << USAGE
