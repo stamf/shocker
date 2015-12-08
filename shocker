@@ -106,7 +106,7 @@ shocker_pre_run() {
   echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
   echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
   echo "$@"  > "$btrfs_path/$cntid/${cntid}.cmd"
-  cp init "$btrfs_path/$cntid/root/init" || true
+  cp "$dirname/init" "$btrfs_path/$cntid/root/init" || true
 
   cgcreate -g "$cgroups:/$cntid"
   : "${SHOCKER_CPU_SHARE:=512}"
