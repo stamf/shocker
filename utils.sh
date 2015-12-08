@@ -2,6 +2,7 @@
 
 btrfs_path='/var/shocker'
 cgroups='cpu,cpuacct,memory'
+dirname=$(dirname "$(readlink -f "$0")")
 
 shocker_check() {
   btrfs subvolume list "$btrfs_path" | grep -qw "$1"
@@ -97,7 +98,7 @@ get_gateway () {
 }
 
 get_bridge_dev () {
-  . ./settings.conf 2> /dev/null
+  . "$dirname"/settings.conf 2> /dev/null
   echo "$BRIDGE_DEV"
 }
 
