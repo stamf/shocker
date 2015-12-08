@@ -46,7 +46,7 @@ The following packages are needed to run shocker.
 * curl
 * iproute2
 * iptables
-* libcgroup-tools (cgroup-tools on Debian / Ubuntu)
+* libcgroup-tools (cgroup-tools on Debian / cgroup-bin on Ubuntu)
 * util-linux >= 2.25.2
 * coreutils >= 7.5
 
