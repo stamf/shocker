@@ -79,7 +79,7 @@ shocker_execute() {
 }
 
 get_base_network () {
-  . ./settings.conf 2> /dev/null
+  . "$dirname"/settings.conf 2> /dev/null
   echo "${NETWORK:-10.0.0.0/24}"
 }
 
