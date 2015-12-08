@@ -1,6 +1,6 @@
 #!/bin/sh
-
-. ./utils.sh
+dirname=$(dirname "$(readlink -f "$0")")
+. "$dirname"/utils.sh
 
 usage () {
 cat << USAGE
