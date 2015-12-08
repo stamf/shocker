@@ -3,8 +3,9 @@ Docker implemented in shell. Forked from
 [bocker](https://github.com/p8952/bocker).
 
 - [Features](#features)
+- [Usage](#usage)
+- [Installation](#installation)
 - [Prerequisites](#prerequisites)
-- [Example Usage](#example-usage)
 - [FAQ](#faq)
 - [License](#license)
 
@@ -31,6 +32,11 @@ Docker implemented in shell. Forked from
     $ shocker pull alpine latest   # fetch the latest alpine linux image
     $ shocker images               # list local images
     $ shocker run img_1235 ash     # start an ash shell from an image
+```
+
+## Installation
+```sh
+$ curl -sL https://github.com/stamf/shocker/archive/master.tar.gz | tar xz
 ```
 
 ## Prerequisites
