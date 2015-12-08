@@ -14,3 +14,6 @@ sudo mkdir -p '/var/shocker'
 
 # mount btrfs filesystem onto mount node
 sudo mount '/dev/xvdb' '/var/shocker'
+
+# download shocker
+curl -sL https://github.com/stamf/shocker/archive/master.tar.gz | tar xz
