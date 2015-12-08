@@ -5,7 +5,8 @@ cgroups='cpu,cpuacct,memory'
 
 shocker_check() {
   btrfs subvolume list "$btrfs_path" | grep -qw "$1"
-  return "$?"
+  echo $?
+  return $?
 }
 
 ip_to_int() { #Transform ipv4 address into int
@@ -101,11 +102,15 @@ get_bridge_dev () {
 }
 
 gen_uuid() {
+  fifo=$(mktemp -p /tmp -u XXXX)
+  mkfifo "$fifo"
+  seq -f "%010g" 2 "$1" > "$fifo" &
   find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' \
     | sed 's#^.*/ps_##' \
     | xargs printf "%010d\n" \
     | sort \
-    | comm -1 -3 - <(seq -f "%010g" 2 "$1") \
+    | comm -1 -3 - "$fifo" \
     | head -1 \
     | sed 's/^0*//'
+  rm -f "$fifo"
 }
