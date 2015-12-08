@@ -7,6 +7,11 @@ cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 repo="$dirname/../.shocker-repo"
 
+if [ "$(id -u)" -ne 0 ]; then
+  printf "shocker(1) should be executed as sudo\n"
+  exit 1
+fi
+
 if [ $# -gt 0 ]; then
   while [ "${1:0:2}" = '--' ]; do
     OPTION=${1:2}
