@@ -1,8 +1,9 @@
 #!/bin/sh
 btrfs_path='/var/shocker'
+dirname=$(dirname "$(readlink -f "$0")")
 
-# source helper ut
-. ./utils.sh
+# source helper utils
+. "$dirname"/utils.sh
 
 usage () {
 cat << USAGE

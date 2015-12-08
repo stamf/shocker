@@ -21,7 +21,7 @@ case "$1" in
 esac
 
 if [ "$(shocker_check "$1")" -eq 1 ]; then
-  echo "No container named '$1' exists" >&2
+  printf "No container named '%s' exists\n" "$1" >&2
   exit 1
 fi
 
@@ -33,7 +33,7 @@ fn_mine () {
 
 cid="$(fn_mine "$1")"
 if [[ ! "$cid" =~ ^\ *[0-9]+$ ]]; then
-  echo "Container '$1' exists but is not running"
+  printf "Container '%s' exists but is not running\n" "$1"
   exit 1
 fi
 
