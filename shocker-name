@@ -24,5 +24,6 @@ case "$1" in
 esac
 [ "$#" -eq 2 ] || { usage; exit 1; }
 
-[ "$(shocker_check "$1")" = 1 ] && echo "No container named '$1' exists" >&2 && exit 1
+shocker_exists "$1"
+[ "$?" -ne 0 ] && echo "No container named '$1' exists" >&2 && exit 1
 ln -s "$btrfs_path/$1" "$btrfs_path/$2"

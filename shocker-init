@@ -26,7 +26,8 @@ esac
 uuid="img_$(shuf -i 42002-42254 -n 1)"
 [ -d "$1" ] || { printf "No directory named '%s' exists\n" "$1" >&2; exit 1; }
 
-[ "$(shocker_check "$uuid")" -eq 0 ] && bocker_run "$@"
+shocker_exists "$uuid"
+[ "$?" -eq 0 ] && bocker_run "$@"
 
 btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
 cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null

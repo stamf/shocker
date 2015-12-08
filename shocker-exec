@@ -1,5 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 btrfs_path='/var/shocker'
+dirname=$(dirname "$(readlink -f "$0")")
+
+# source helper utils
+. "$dirname"/utils.sh
 
 usage () {
 cat << USAGE
@@ -15,12 +19,14 @@ cat << USAGE
 USAGE
 }
 
-[ "$#" -eq 1 ] || { usage; exit 1; }
 case "$1" in
-  -h|--help ) usage && exit 1 ;;
+  -h|--help ) usage && exit 0;;
 esac
 
-if [ "$(shocker_check "$1")" -eq 1 ]; then
+[ "$#" -eq 2 ] || { usage; exit 1; }
+
+shocker_exists "$1"
+if [ "$?" -ne 0 ]; then
   printf "No container named '%s' exists\n" "$1" >&2
   exit 1
 fi
@@ -32,8 +38,9 @@ fn_mine () {
 }
 
 cid="$(fn_mine "$1")"
-if [[ ! "$cid" =~ ^\ *[0-9]+$ ]]; then
-  printf "Container '%s' exists but is not running\n" "$1"
+shocker_running "$1"
+if [ "$?" -ne 0 ]; then
+  printf "Container '%s' exists but is not running\n" "$1" >&2
   exit 1
 fi
 

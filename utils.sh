@@ -4,9 +4,14 @@ btrfs_path='/var/shocker'
 cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
-shocker_check() {
+shocker_exists() {
   btrfs subvolume list "$btrfs_path" | grep -qw "$1"
-  echo $?
+  return $?
+}
+
+shocker_running() {
+  state=$(get_state "$1")
+  test "$state" = "running"
   return $?
 }
 
@@ -49,7 +54,8 @@ addr_to_hostid() { #Transforms ip/mask into an int representing the host
 }
 
 get_state() {
-  [ ! -d "$btrfs_path/$1" ] && echo missing && return
+  shocker_exists "$1"
+  [ "$?" -ne 0 ] && printf "Container '%s' does not exist" "$1" >&2 && exit 1
   [ -d "/sys/fs/cgroup/cpuacct/$1" ] && cgdef=1 || cgdef=0
   grep -q . "/sys/fs/cgroup/cpuacct/$1/tasks" 2>/dev/null && procs=1 || procs=0
   ip netns show | grep -q "netns_$1" 2>/dev/null && netns=1 || netns=0

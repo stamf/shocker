@@ -69,11 +69,13 @@ shocker_pre_run() {
     printf 'No more container id space for this subnet mask\n' >&2
     exit 1
   fi
-  if [ "$(shocker_check "$1")" = 1 ]; then
+  shocker_exists "$1"
+  if [ "$?" -ne 0 ]; then
     echo "No image named '$1' exists" >&2
     exit 1
   fi
-  if [ "$(shocker_check "$cntid")" = 0 ]; then
+  shocker_exists "$cntid"
+  if [ "$?" -eq 0 ]; then
     echo "UUID conflict, retrying..." >&2
     exit 1
   fi

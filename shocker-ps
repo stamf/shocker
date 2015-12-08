@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 btrfs_path='/var/shocker'
 dirname=$(dirname "$(readlink -f "$0")")
 

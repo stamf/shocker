@@ -21,7 +21,8 @@ case "$1" in
   -h|--help ) usage && exit 1 ;;
 esac
 
-if [ "$(shocker_check "$1")" -ne 0 ]; then
+shocker_exists "$1"
+if [ "$?" -ne 0 ]; then
   printf "No container named '%s' exists\n" "$1" >&2
   exit 1
 fi
