@@ -66,7 +66,7 @@ shocker_pre_run() {
   uuid=$(gen_uuid "$NHOSTS")
   cntid="ps_$uuid"
 
-  if [ "$#" -ne 1 ]; then
+  if [ "$#" -le 1 ]; then
     printf "Incorrect argument count\n" >&2
     exit 1
   fi
@@ -107,6 +107,9 @@ shocker_pre_run() {
   echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
   echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
   echo "$@"  > "$btrfs_path/$cntid/${cntid}.cmd"
+  #shellcheck disable=SC2094
+  echo "$(cat "$btrfs_path/$cntid/.tree")" "$(date +%s)" "$cntid" "$@" \
+      | md5sum | cut -f1 -d' ' >> "$btrfs_path/$cntid/.tree"
   cp "$dirname/init" "$btrfs_path/$cntid/root/init"
 
   cgcreate -g "$cgroups:/$cntid"
@@ -114,12 +117,6 @@ shocker_pre_run() {
   cgset -r cpu.shares="$SHOCKER_CPU_SHARE" "$cntid"
   : "${SHOCKER_MEM_LIMIT:=512}"
   cgset -r memory.limit_in_bytes="$((SHOCKER_MEM_LIMIT * 1048576))" "$cntid"
-  #"${SHOCKER_KMEM_LIMIT:=32}"
-  # cgset \
-  # -r memory.kmem.limit_in_bytes="$((SHOCKER_KMEM_LIMIT * 1048576))" "$cntid"
-  #"${SHOCKER_MEMSW_LIMIT:=$SHOCKER_MEM_LIMIT}"
-  # cgset \
-  #-r memory.memsw.limit_in_bytes="$((SHOCKER_MEMSW_LIMIT * 1048576))" "$cntid"
 
   echo "$cntid"
 }
