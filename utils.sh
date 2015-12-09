@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 btrfs_path='/var/shocker'
 cgroups='cpu,cpuacct,memory'
@@ -18,39 +18,58 @@ shocker_running() {
 ip_to_int() { #Transform ipv4 address into int
   # shellcheck disable=SC2001
   eval set -- "$(echo "$1" | sed 's|[./]| |g')"
-  echo $(($1 * 256**3 + $2 * 256**2 + $3 * 256**1 + $4))
+  echo "$1 256 3 ^ * $2 256 2 ^ * + $3 256 * + $4 + p" | dc
 }
 
 int_to_ip() { #Transform int into ipv4 address
-  printf "%d.%d.%d.%d" \
-    $((($1 & 256**4-1) / 256**3)) \
-    $((($1 & 256**3-1) / 256**2)) \
-    $((($1 & 256**2-1) / 256**1)) \
-    $(( $1 & 256**1-1))
+  echo "
+    $1 256 3 ^ / p
+    $1 256 2 ^ / 256 % p
+    $1 256 1 ^ / 256 % p
+    $1 256 % p" \
+      | dc \
+      | xargs printf "%d.%d.%d.%d"
 }
 
 int_to_mac() { #Transform int into mac address
-  printf "02:42:%02x:%02x:%02x:%02x" \
-    $((($1 & 256**4-1) / 256**3)) \
-    $((($1 & 256**3-1) / 256**2)) \
-    $((($1 & 256**2-1) / 256**1)) \
-    $(( $1 & 256**1-1))
+  echo "
+    $1 256 3 ^ / p
+    $1 256 2 ^ / 256 % p
+    $1 256 1 ^ / 256 % p
+    $1 256 % p" \
+      | dc \
+      | xargs printf "02:42:%02x:%02x:%02x:%02x"
 }
 
 addr_to_network() { #Transforms ip/mask into an int representing the network
   # shellcheck disable=SC2001
   eval set -- "$(echo "$1" | sed 's|/| |')"
-  mask=$(((2**$2-1) * 2**(32-$2)))
-  addr=$(ip_to_int "$1")
-  echo $((addr & mask))
-}
 
-addr_to_hostid() { #Transforms ip/mask into an int representing the host
-  # shellcheck disable=SC2001
-  eval set -- "$(echo "$1" | sed 's|/| |')"
-  mask=$((2**(32-$2)-1))
-  addr=$(ip_to_int "$1")
-  echo $((addr & mask))
+  echo "$1" \
+      | sed '
+          # replace dots with spaces
+          s/\./ /g;
+          # append "p" to contiguous numbers
+          s/\([0-9]\+\)/\1p/g;
+          # prepend string with "2o "
+          s/^/2o /' \
+      | dc \
+      | sed '
+          # prepend numbers with 7 zeroes
+          s/^/0000000/;
+          # take last 8 digits of number (zero padded)
+          s/.*\(.\{8\}\)$/\1/' \
+      | sed '
+          # collapse lines into single line, separated by nothing
+          :a;
+              N;s/\n//g;
+          ta' \
+      | sed "
+          # take first MASK digits from string, rpad with zeroes
+          s/\(.\{$2\}\).*/\100000000000000000000000000000000/;
+          # take first 32 digits from string, prepend with '2i ', append 'p'
+          s/\(.\{32\}\).*/2i \1p/" \
+      | dc
 }
 
 get_state() {
@@ -79,19 +98,19 @@ shocker_execute() {
 }
 
 get_base_network () {
+  #shellcheck disable=SC1090
   . "$dirname"/settings.conf 2> /dev/null
   echo "${NETWORK:-10.0.0.0/24}"
 }
 
 get_mask () {
   NETWORK="$(get_base_network)"
-  # shellcheck disable=SC2001
   echo "$NETWORK" | sed 's#^.*/##g'
 }
 
 get_nhosts () {
   MASK=$(get_mask)
-  echo $((2**(32-MASK)))
+  echo "2 32 $MASK - ^ p" | dc
 }
 
 get_network () {
@@ -100,10 +119,11 @@ get_network () {
 
 get_gateway () {
   NETWORK=$(get_network)
-  echo $((NETWORK + 1))
+  echo "1 $NETWORK + p" | dc
 }
 
 get_bridge_dev () {
+  #shellcheck disable=SC1090
   . "$dirname"/settings.conf 2> /dev/null
   echo "$BRIDGE_DEV"
 }
