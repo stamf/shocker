@@ -7,7 +7,7 @@
 sudo yum install btrfs-progs
 
 # format xvdb into btrfs filesystem
-sudo mkfs -t btrfs /dev/xvdb
+sudo mkfs -t btrfs /dev/xvdf
 
 # create btrfs mount node
 sudo mkdir -p '/var/shocker'
@@ -17,3 +17,6 @@ sudo mount '/dev/xvdb' '/var/shocker'
 
 # download shocker
 curl -sL https://github.com/stamf/shocker/archive/master.tar.gz | tar xz
+
+# mount cgroups
+sudo service cgconfig start

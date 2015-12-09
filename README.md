@@ -42,7 +42,7 @@ $ curl -sL https://github.com/stamf/shocker/archive/master.tar.gz | tar xz
 ## Prerequisites
 The following packages are needed to run shocker.
 
-* btrfs-progs
+* btrfs-progs (btrfs-tools on Ubuntu)
 * curl
 * iproute2
 * iptables
@@ -105,6 +105,13 @@ $ sudo chmod 1777 /tmp   # open to everyone + set sticky bit
 ### Error: argument "x" is wrong: Device does not exist
 This means that a network device is not found. To enable it run `shocker route
 <devicename>` to setup `iptables` rules and link the device.
+
+### Error: libcgroup initialization failed: Cgroup is not mounted
+This means cgroups are not yet mounted on your system. Use `cgconfig` to start
+them up (example below uses System V init):
+```sh
+$ sudo service cgconfig start
+```
 
 ## License
 GPL-3
