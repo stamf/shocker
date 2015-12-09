@@ -184,5 +184,5 @@ case "$1" in
   run       ) shift && shocker_run "$@" ;;
   spawn     ) shift && shocker_spawn "$@" ;;
   stop      ) shift && "$dirname/shocker-stop" "$@" ;;
-  *         ) shift && "$dirname/shocker-help" && exit 1 ;;
+  *         ) usage && exit 1 ;;
 esac
