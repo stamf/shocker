@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-shopt -s nullglob
 btrfs_path='/var/shocker'
 cgroups='cpu,cpuacct,memory'
 
@@ -25,7 +23,6 @@ if [ $# -gt 0 ]; then
 fi
 
 # check if btrfs is mounted and available
-set +e
 if [ ! -d "$btrfs_path" ]; then
   printf '%s does not exist, creating:\n' "$btrfs_path" >&2
   mkdir -p "$btrfs_path"
@@ -35,7 +32,6 @@ if [ "$?" -ne 0 ]; then
   printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path" >&2
   exit 1
 fi
-set -e
 
 # source utility functions
 . "$dirname"/utils.sh
@@ -111,7 +107,7 @@ shocker_pre_run() {
   echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
   echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
   echo "$@"  > "$btrfs_path/$cntid/${cntid}.cmd"
-  cp "$dirname/init" "$btrfs_path/$cntid/root/init" || true
+  cp "$dirname/init" "$btrfs_path/$cntid/root/init"
 
   cgcreate -g "$cgroups:/$cntid"
   : "${SHOCKER_CPU_SHARE:=512}"
@@ -129,10 +125,10 @@ shocker_pre_run() {
 }
 
 shocker_post_run() {
-  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount || true
+  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount
   ip link del dev veth0_"$1"
   ip netns del netns_"$1"
-  cgdelete -g "$cgroups:/$1" &> /dev/null || true
+  cgdelete -g "$cgroups:/$1" &> /dev/null
 }
 
 #HELP Create a container:
@@ -143,7 +139,7 @@ shocker_spawn() {
     exit 1
   fi
 
-  cntid=$(shocker_pre_run "$@")
+  cntid=$(shocker_pre_run "$@") || exit 1
 
   service="$3"
   instance_tag="$btrfs_path/$cntid/var/tmp/instance-tag"
@@ -169,8 +165,8 @@ shocker_spawn() {
 
 #HELP Create a container:\nSHOCKER run <image_id> <command>
 shocker_run() {
-  cntid=$(shocker_pre_run "$@")
-  shocker_execute "$cntid" "${@:2}" || true
+  cntid=$(shocker_pre_run "$@") || exit 1
+  shocker_execute "$cntid" "${@:2}"
   shocker_post_run "$cntid"
 }
 
