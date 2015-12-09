@@ -70,6 +70,11 @@ shocker_pre_run() {
   uuid=$(gen_uuid "$NHOSTS")
   cntid="ps_$uuid"
 
+  if [ "$#" -ne 1 ]; then
+    printf "Incorrect argument count\n" >&2
+    exit 1
+  fi
+
   if [ -z "$uuid" ]; then
     printf 'No more container id space for this subnet mask\n' >&2
     exit 1
@@ -133,6 +138,11 @@ shocker_post_run() {
 #HELP Create a container:
 #SHOCKER spawn <image_id> <env> <nix-image> <conf-file>
 shocker_spawn() {
+  if [ "$#" -ne 4 ]; then
+    printf "Usage: spawn <image_id> <env> <nix-image> <conf-file>\n" >&2
+    exit 1
+  fi
+
   cntid=$(shocker_pre_run "$@")
 
   service="$3"
