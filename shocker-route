@@ -14,6 +14,7 @@ cat << USAGE
    -h, --help output usage information
 
   Examples:
+    $ shocker route eth0   # expose the eth0 device
 USAGE
 }
 
