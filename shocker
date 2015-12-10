@@ -6,7 +6,7 @@ dirname=$(dirname "$(readlink -f "$0")")
 repo="$dirname/../.shocker-repo"
 
 if [ "$(id -u)" -ne 0 ]; then
-  printf "shocker(1) should be executed as sudo\n"
+  printf "shocker(1) should be executed as sudo\n" >&2
   exit 1
 fi
 
@@ -24,8 +24,8 @@ fi
 
 # check if btrfs is mounted and available
 if [ ! -d "$btrfs_path" ]; then
-  printf '%s does not exist, creating:\n' "$btrfs_path" >&2
-  mkdir -p "$btrfs_path"
+  printf 'Error: %s does not exist\n' "$btrfs_path" >&2
+  exit 1
 fi
 sudo btrfs filesystem show "$btrfs_path" > /dev/null
 if [ "$?" -ne 0 ]; then
@@ -34,6 +34,7 @@ if [ "$?" -ne 0 ]; then
 fi
 
 # source utility functions
+#shellcheck disable=SC1090
 . "$dirname"/utils.sh
 
 usage () {
@@ -77,12 +78,12 @@ shocker_pre_run() {
   fi
   shocker_exists "$1"
   if [ "$?" -ne 0 ]; then
-    echo "No image named '$1' exists" >&2
+    printf "No image named '%s' exists\n" "$1" >&2
     exit 1
   fi
   shocker_exists "$cntid"
   if [ "$?" -eq 0 ]; then
-    echo "UUID conflict, retrying..." >&2
+    printf "UUID conflict, '%s' already exists\n" "$cntid" >&2
     exit 1
   fi
 

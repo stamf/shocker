@@ -31,5 +31,5 @@ if [ "$?" -ne 0 ]; then
 fi
 
 btrfs subvolume delete "$btrfs_path"/"$1" > /dev/null
-cgdelete -g "$cgroups":/"$1" > /dev/null 2>&1 || true
+cgdelete -g "$cgroups":/"$1" > /dev/null 2>&1
 printf "Removed: %s\n" "$1"

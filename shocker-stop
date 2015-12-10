@@ -37,5 +37,5 @@ case $state in
 esac
 
 sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
-  kill -SIGTERM -- "$proc" 2>/dev/null || true;
+  kill -SIGTERM -- "$proc" 2>/dev/null
 done

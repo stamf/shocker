@@ -28,7 +28,7 @@ NETWORK="$(get_network)"
 BRIDGE_DEV="$(get_bridge_dev)"
 MASK="$(get_mask)"
 
-ip link add "$BRIDGE_DEV" type bridge || true
+ip link add "$BRIDGE_DEV" type bridge
 ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
 ip link set "$BRIDGE_DEV" up
 

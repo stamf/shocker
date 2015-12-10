@@ -94,7 +94,7 @@ shocker_execute() {
     ip netns exec netns_"$cntid" \
     unshare -fmuip --mount-proc \
     chroot "$btrfs_path/$cntid" \
-    /bin/sh -c "source /root/init; $*" || true
+    /bin/sh -c "source /root/init; $*"
 }
 
 get_base_network () {
