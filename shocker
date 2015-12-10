@@ -168,21 +168,31 @@ shocker_run() {
   shocker_post_run "$cntid"
 }
 
+shocker_image() {
+    case "$1" in
+      -h|--help ) usage && exit 0 ;;
+      list|ls   ) shift && "$dirname/shocker-image-list" "$@" ;;
+      pull      ) shift && "$dirname/shocker-image-pull" "$@" ;;
+      create    ) shift && "$dirname/shocker-image-create" "$@" ;;
+      change    ) shift && "$dirname/shocker-image-change" "$@" ;;
+      remove|rm ) shift && "$dirname/shocker-image-remove" "$@" ;;
+      *         ) usage && exit 1 ;;
+    esac
+}
+
 [ "$#" -ne 0 ] || { usage; exit 1; }
 case "$1" in
   -h|--help ) usage && exit 0 ;;
+  image     ) shift && shocker_image "$@" ;;
   commit    ) shift && "$dirname/shocker-commit" "$@" ;;
   cleanup   ) shift && "$dirname/shocker-cleanup" "$@" ;;
   exec      ) shift && "$dirname/shocker-exec" "$@" ;;
   export    ) shift && "$dirname/shocker-export" "$@" ;;
-  images    ) shift && "$dirname/shocker-images" "$@" ;;
-  init      ) shift && "$dirname/shocker-init" "$@" ;;
   kill      ) shift && "$dirname/shocker-kill" "$@" ;;
   limit     ) shift && "$dirname/shocker-limit" "$@" ;;
   logs      ) shift && "$dirname/shocker-logs" "$@" ;;
   name      ) shift && "$dirname/shocker_name" "$@" ;;
   ps        ) shift && "$dirname/shocker-ps" "$@" ;;
-  pull      ) shift && "$dirname/shocker-pull" "$@" ;;
   rm        ) shift && "$dirname/shocker-rm" "$@" ;;
   route     ) shift && "$dirname/shocker-route" "$@" ;;
   run       ) shift && shocker_run "$@" ;;

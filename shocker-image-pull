@@ -2,7 +2,7 @@
 dirname=$(dirname "$(readlink -f "$0")")
 
 shocker_init () {
-  "$dirname"/shocker-init "$@"
+  "$dirname"/shocker-image-create "$@"
 }
 
 #HELP Pull an image from Docker Hub:\nSHOCKER pull <name> <tag>
