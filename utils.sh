@@ -1,7 +1,6 @@
 #!/bin/sh
 
 btrfs_path='/var/shocker'
-cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
 shocker_exists() {
@@ -74,7 +73,7 @@ addr_to_network() { #Transforms ip/mask into an int representing the network
 
 get_state() {
   shocker_exists "$1"
-  [ "$?" -ne 0 ] && printf "Container '%s' does not exist" "$1" >&2 && exit 1
+  [ "$?" -ne 0 ] && echo missing && exit
   [ -d "/sys/fs/cgroup/cpuacct/$1" ] && cgdef=1 || cgdef=0
   grep -q . "/sys/fs/cgroup/cpuacct/$1/tasks" 2>/dev/null && procs=1 || procs=0
   ip netns show | grep -q "netns_$1" 2>/dev/null && netns=1 || netns=0
@@ -87,14 +86,17 @@ get_state() {
   echo $state
 }
 
-shocker_execute() {
-  cntid="$1"
-  shift;
-  cgexec -g "$cgroups:$cntid" \
-    ip netns exec netns_"$cntid" \
-    unshare -fmuip --mount-proc \
-    chroot "$btrfs_path/$cntid" \
-    /bin/sh -c "source /root/init; $*"
+get_type() {
+  shocker_exists "$1"
+  [ "$?" -ne 0 ] && echo unknown && return 0
+
+  echo "$1" | grep -q '^img_'
+  [ "$?" -eq 0 ] && echo 'image' && return 0
+
+  echo "$1" | grep -q '^ps_'
+  [ "$?" -eq 0 ] && echo 'container' && return 0
+
+  echo 'unknown' && return 0
 }
 
 get_base_network () {

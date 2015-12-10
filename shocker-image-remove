@@ -4,6 +4,7 @@ cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
 # source helper utils
+#shellcheck disable=SC1090
 . "$dirname"/utils.sh
 
 usage () {

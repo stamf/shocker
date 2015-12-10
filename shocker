@@ -1,25 +1,10 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 btrfs_path='/var/shocker'
-cgroups='cpu,cpuacct,memory'
-
 dirname=$(dirname "$(readlink -f "$0")")
-repo="$dirname/../.shocker-repo"
 
 if [ "$(id -u)" -ne 0 ]; then
   printf "shocker(1) should be executed as sudo\n" >&2
   exit 1
-fi
-
-if [ $# -gt 0 ]; then
-  while [ "${1:0:2}" = '--' ]; do
-    OPTION=${1:2}
-    if [[ $OPTION =~ = ]]; then
-      declare "SHOCKER_${OPTION/=*/}=${OPTION/*=/}"
-    else
-      declare "SHOCKER_${OPTION}=x"
-    fi
-    shift
-  done
 fi
 
 # check if btrfs is mounted and available
@@ -57,117 +42,6 @@ cat << USAGE
 USAGE
 }
 
-shocker_pre_run() {
-  BRIDGE_DEV="$(get_bridge_dev)"
-  GATEWAY="$(get_gateway)"
-  NETWORK="$(get_network)"
-  NHOSTS="$(get_nhosts)"
-  MASK="$(get_mask)"
-
-  uuid=$(gen_uuid "$NHOSTS")
-  cntid="ps_$uuid"
-
-  if [ "$#" -le 1 ]; then
-    printf "Incorrect argument count\n" >&2
-    exit 1
-  fi
-
-  if [ -z "$uuid" ]; then
-    printf 'No more container id space for this subnet mask\n' >&2
-    exit 1
-  fi
-  shocker_exists "$1"
-  if [ "$?" -ne 0 ]; then
-    printf "No image named '%s' exists\n" "$1" >&2
-    exit 1
-  fi
-  shocker_exists "$cntid"
-  if [ "$?" -eq 0 ]; then
-    printf "UUID conflict, '%s' already exists\n" "$cntid" >&2
-    exit 1
-  fi
-
-  ip="$(int_to_ip $((NETWORK + uuid)))"
-  mac="$(int_to_mac "$uuid")"
-  gwip="$(int_to_ip "$GATEWAY")"
-
-  ip netns add netns_"$cntid"
-  ip link add dev veth0_"$cntid" type veth peer name veth1_"$cntid"
-  ip link set dev veth0_"$cntid" up
-  ip link set veth0_"$cntid" master "$BRIDGE_DEV"
-  ip link set veth1_"$cntid" netns netns_"$cntid"
-  ip netns exec netns_"$cntid" ip link set dev lo up
-  ip netns exec netns_"$cntid" ip link set veth1_"$cntid" address "$mac"
-  ip netns exec netns_"$cntid" ip addr add "$ip/$MASK" dev veth1_"$cntid"
-  ip netns exec netns_"$cntid" ip link set dev veth1_"$cntid" up
-  ip netns exec netns_"$cntid" ip route add default via "$gwip"
-
-  btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$cntid" > /dev/null
-
-  mount -o bind /dev/pts "$btrfs_path/$cntid/dev/pts"
-  echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
-  echo "$ip" > "$btrfs_path/$cntid/host-ip-addr"
-  echo "$@"  > "$btrfs_path/$cntid/${cntid}.cmd"
-  #shellcheck disable=SC2094
-  echo "$(cat "$btrfs_path/$cntid/.tree")" "$(date +%s)" "$cntid" "$@" \
-      | md5sum | cut -f1 -d' ' >> "$btrfs_path/$cntid/.tree"
-  cp "$dirname/init" "$btrfs_path/$cntid/root/init"
-
-  cgcreate -g "$cgroups:/$cntid"
-  : "${SHOCKER_CPU_SHARE:=512}"
-  cgset -r cpu.shares="$SHOCKER_CPU_SHARE" "$cntid"
-  : "${SHOCKER_MEM_LIMIT:=512}"
-  cgset -r memory.limit_in_bytes="$((SHOCKER_MEM_LIMIT * 1048576))" "$cntid"
-
-  echo "$cntid"
-}
-
-shocker_post_run() {
-  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount
-  ip link del dev veth0_"$1"
-  ip netns del netns_"$1"
-  cgdelete -g "$cgroups:/$1" &> /dev/null
-}
-
-#HELP Create a container:
-#SHOCKER spawn <image_id> <env> <nix-image> <conf-file>
-shocker_spawn() {
-  if [ "$#" -ne 4 ]; then
-    printf "Usage: spawn <image_id> <env> <nix-image> <conf-file>\n" >&2
-    exit 1
-  fi
-
-  cntid=$(shocker_pre_run "$@") || exit 1
-
-  service="$3"
-  instance_tag="$btrfs_path/$cntid/var/tmp/instance-tag"
-  service_config="$btrfs_path/$cntid/etc/service-config"
-
-  tar xzf "$repo/${service}.tgz" -C "$btrfs_path/$cntid"
-  pushd "$repo/api-config-files" >/dev/null || exit
-  mkdir -p "$btrfs_path/$cntid/etc/service-config"
-  git archive master \
-    | tar -x --strip-components=2 -C "$service_config" "$service/$2"
-  popd >/dev/null
-
-  now=$(date +%s.%N)
-  ipaddr=$(cat "$btrfs_path/$cntid/host-ip-addr")
-  printf '%s\t%s\t%s\t%s\t%s' "$now" "$2" "$service" "$ipaddr" \
-    > "$instance_tag"
-
-  shocker_execute "$cntid" "$service" -c "/etc/service-config/$4" || true
-  rm -f "$instance_tag"
-
-  shocker_post_run "$cntid"
-}
-
-#HELP Create a container:\nSHOCKER run <image_id> <command>
-shocker_run() {
-  cntid=$(shocker_pre_run "$@") || exit 1
-  shocker_execute "$cntid" "${@:2}"
-  shocker_post_run "$cntid"
-}
-
 shocker_image() {
     case "$1" in
       -h|--help ) usage && exit 0 ;;
@@ -197,6 +71,7 @@ case "$1" in
   route     ) shift && "$dirname/shocker-route" "$@" ;;
   run       ) shift && shocker_run "$@" ;;
   spawn     ) shift && shocker_spawn "$@" ;;
+  start     ) shift && "$dirname/shocker-start" "$@" ;;
   stop      ) shift && "$dirname/shocker-stop" "$@" ;;
   *         ) usage && exit 1 ;;
 esac
