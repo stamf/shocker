@@ -195,6 +195,20 @@ shocker_exec() {
   nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
 }
 
+shocker_cleanup() {
+  #shellcheck disable=SC2012
+  ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
+    ps=$(basename "$ps")
+    if [ "$(get_state "$ps")" = "crashed" ]; then
+      findmnt -r | grep "^$ps/" | cut -f1 -d' ' | xargs umount
+      ip link del "veth0_$ps" >/dev/null 2>&1
+      ip netns del "netns_$ps" >/dev/null 2>&1
+      cgdelete -g "$cgroups:/$ps" >/dev/null 2>&1
+      printf "Cleaned '%s'\n" "$ps"
+    fi
+  done
+}
+
 cstate=$(get_state "$1")
 ctype=$(get_type "$1")
 
@@ -204,7 +218,7 @@ case "$ctype" in
     case "$cstate" in
       running) shocker_exec "$@" ;;
       stopped) shocker_restart "$@" ;;
-      crashed) "$dirname"/shocker-cleanup; shocker_restart "$@" ;;
+      crashed) shocker_cleanup; shocker_restart "$@" ;;
       missing) printf "Container '%s' does not exist\n" "$1" >&2; exit 1 ;;
       *      ) usage; exit 1 ;;
     esac ;;
