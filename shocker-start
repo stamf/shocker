@@ -190,8 +190,9 @@ case "$ctype" in
       running) shocker_exec "$@" ;;
       stopped) shocker_restart "$@" ;;
       crashed) "$dirname"/shocker-cleanup; shocker_restart "$@" ;;
-      missing) error ;;
-      *      ) error ;;
+      missing) printf "Container '%s' does not exist\n" "$1" >&2; exit 1 ;;
+      *      ) usage; exit 1 ;;
     esac ;;
-  *        ) error ;;
+  unknown  ) printf "Can not determine type of '%s'\n" "$1" >&2; exit 1 ;;
+  *        ) usage; exit 1 ;;
 esac
