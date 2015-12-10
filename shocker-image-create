@@ -2,37 +2,50 @@
 btrfs_path='/var/shocker'
 dirname=$(dirname "$(readlink -f "$0")")
 
+#shellcheck disable=SC1090
 . "$dirname"/utils.sh
 
 usage () {
 cat << USAGE
-  shocker-init - create an image from a directory
+  shocker-image-create - create an image
 
-  Usage: shocker init <directory>
+  Usage: shocker image create <dir|image|container> [tar-archive [...]]
 
   Options:
    -h, --help output usage information
 
   Examples:
-   $ shocker init .  # create a new image from current dir
+   $ shocker image create .             # create a new image from current dir
+   $ shocker image create . archive.tgz # create a new image from current dir
+                                        # with archive.tgz layed over it
 USAGE
 }
 
-[ "$#" -eq 1 ] || { usage; exit 1; }
+[ "$#" -eq 0 ] && { usage; exit 1; }
 case "$1" in
   -h|--help ) usage && exit 1 ;;
 esac
 
-uuid="img_$(shuf -i 42002-42254 -n 1)"
-[ -d "$1" ] || { printf "No directory named '%s' exists\n" "$1" >&2; exit 1; }
+# generate image id
+while true; do
+    uuid="$(mktemp -u img_XXXXX)"
+    [ ! -e "$btrfs_path/$uuid" ] && break
+done
 
-shocker_exists "$uuid"
-[ "$?" -eq 0 ] && bocker_run "$@"
-
+# create new empty subvolume
 btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
-cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
-[ -f "$btrfs_path/$uuid"/img.source ] || {
-  echo "$1" > "$btrfs_path/$uuid"/img.source
-}
+
+# copy (using reflink) all files in source dir to image dir
+cp -rf --reflink=auto "$1" "$btrfs_path/$uuid" > /dev/null
+
+# save image meta data
+readlink -f "$1" > "$btrfs_path/$uuid"/img.source
+
+# extract all tarballs over image directory
+shift
+for tarball in "$@"; do
+    [ -r "$tarball" ] || break;
+    tar xaf "$tarball" -C "$btrfs_path/$uuid"
+done
 
 printf "Created: %s\n" "$uuid"
