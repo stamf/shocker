@@ -77,10 +77,8 @@ case "$1" in
   export    ) shift && "$dirname/shocker-export" "$@" ;;
   limit     ) shift && "$dirname/shocker-limit" "$@" ;;
   logs      ) shift && "$dirname/shocker-logs" "$@" ;;
-  name      ) shift && "$dirname/shocker_name" "$@" ;;
   ps        ) shift && "$dirname/shocker-ps" "$@" ;;
   remove|rm ) shift && "$dirname/shocker-remove" "$@" ;;
-  route     ) shift && "$dirname/shocker-route" "$@" ;;
   start     ) shift && "$dirname/shocker-start" "$@" ;;
   stop      ) shift && "$dirname/shocker-stop" "$@" ;;
   *         ) usage && exit 1 ;;
