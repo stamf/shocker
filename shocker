@@ -26,19 +26,33 @@ usage () {
 cat << USAGE
   Usage: shocker [options] <command>
 
-  commit, cleanup, exec, export, images,
-  init, kill, limit, logs, name, ps,
-  pull, rm, route, run, spawn, stop
+  Commands:
+    list           # list containers
+    start          # start a container
+    change         # modify a container
+    stop           # stop a container
+    remove         # remove a container
+    image list     # list images
+    image pull     # fetch a remote image
+    image create   # create an image
+    image change   # modify an image
+    image remove   # remove an image
 
   Options:
     -h, --help     output usage information
     -v, --version  output version information
 
   Examples:
-    $ shocker pull -h              # output usage for the pull command
-    $ shocker pull alpine latest   # fetch the latest alpine linux image
-    $ shocker images               # list local images
-    $ shocker run img_1235 ash     # start an ash shell from an image
+    $ shocker image pull -h              # output usage for the pull command
+    $ shocker image pull alpine@latest   # fetch alpine linux from docker
+    $ shocker image list                 # list local images
+    $ shocker start img_1235 ash         # start an ash shell from an image
+    $ shocker change img_1235 -n beep    # rename a container
+    $ shocker change beep -m 500m        # change a container's memory limit
+    $ shocker list                       # list containers
+    $ shocker stop beep                  # stop a running container
+    $ shocker remove beep                # remove a stopped container
+    $ shocker image remove img_1235      # remove a local image
 USAGE
 }
 
@@ -60,7 +74,6 @@ case "$1" in
   image     ) shift && shocker_image "$@" ;;
   commit    ) shift && "$dirname/shocker-commit" "$@" ;;
   cleanup   ) shift && "$dirname/shocker-cleanup" "$@" ;;
-  exec      ) shift && "$dirname/shocker-exec" "$@" ;;
   export    ) shift && "$dirname/shocker-export" "$@" ;;
   kill      ) shift && "$dirname/shocker-kill" "$@" ;;
   limit     ) shift && "$dirname/shocker-limit" "$@" ;;
@@ -69,8 +82,6 @@ case "$1" in
   ps        ) shift && "$dirname/shocker-ps" "$@" ;;
   rm        ) shift && "$dirname/shocker-rm" "$@" ;;
   route     ) shift && "$dirname/shocker-route" "$@" ;;
-  run       ) shift && shocker_run "$@" ;;
-  spawn     ) shift && shocker_spawn "$@" ;;
   start     ) shift && "$dirname/shocker-start" "$@" ;;
   stop      ) shift && "$dirname/shocker-stop" "$@" ;;
   *         ) usage && exit 1 ;;
