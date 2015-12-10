@@ -124,10 +124,16 @@ get_gateway () {
   echo "1 $NETWORK + p" | dc
 }
 
+get_outbound_dev() {
+  #shellcheck disable=SC1090
+  . "$dirname"/settings.conf 2>/dev/null
+  echo "${OUTBOUND_DEV:-eth0}"
+}
+
 get_bridge_dev () {
   #shellcheck disable=SC1090
   . "$dirname"/settings.conf 2> /dev/null
-  echo "$BRIDGE_DEV"
+  echo "${BRIDGE_DEV:-bridge0}"
 }
 
 gen_uuid() {

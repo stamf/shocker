@@ -30,6 +30,7 @@ esac
 
 shocker_create_network() {
   BRIDGE_DEV="$(get_bridge_dev)"
+  OUTBOUND_DEV="$(get_outbound_dev)"
   GATEWAY="$(get_gateway)"
   NETWORK="$(get_network)"
   MASK="$(get_mask)"
@@ -39,6 +40,20 @@ shocker_create_network() {
   ip="$(int_to_ip "$(echo "$NETWORK $uuid + p" | dc)")"
   mac="$(int_to_mac "$uuid")"
   gwip="$(int_to_ip "$GATEWAY")"
+
+  ip link show "$BRIDGE_DEV" 2>/dev/null
+  if [ "$?" -ne 0 ]; then
+      ip link add "$BRIDGE_DEV" type bridge
+      ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
+      ip link set "$BRIDGE_DEV" up
+  fi
+
+  iptables -t nat -C POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" \
+      -o "$OUTBOUND_DEV" -j MASQUERADE 2>/dev/null
+  if [ "$?" -ne 0 ]; then
+    iptables -t nat -A POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" \
+        -o "$OUTBOUND_DEV" -j MASQUERADE 2>/dev/null
+  fi
 
   ip netns add netns_"$cntid"
   ip link add dev veth0_"$cntid" type veth peer name veth1_"$cntid"
