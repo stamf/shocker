@@ -4,18 +4,19 @@ cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
 # source helper utils
+#shellcheck disable=SC1090
 . "$dirname"/utils.sh
 
 usage () {
 cat << USAGE
-  shocker-rm - remove stored images or containers
-  Usage: shocker rm <image-id>|<container-id>
+  shocker-remove - remove container
+  Usage: shocker remove <container-id>
 
   Options:
     -h, --help output usage information
 
   Examples:
-    $ shocker rm img_1234  # delete 'img_1234'
+    $ shocker remove ps_1234  # delete 'ps_1234'
 USAGE
 }
 
@@ -30,6 +31,11 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
+ctype=$(get_type "$1")
+if [ "$ctype" != "container" ]; then
+    printf "'%s' is not a container\n" "$1" >&2
+    exit 1
+fi
+
 btrfs subvolume delete "$btrfs_path"/"$1" > /dev/null
 cgdelete -g "$cgroups":/"$1" > /dev/null 2>&1
-printf "Removed: %s\n" "$1"

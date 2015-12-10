@@ -79,7 +79,7 @@ case "$1" in
   logs      ) shift && "$dirname/shocker-logs" "$@" ;;
   name      ) shift && "$dirname/shocker_name" "$@" ;;
   ps        ) shift && "$dirname/shocker-ps" "$@" ;;
-  rm        ) shift && "$dirname/shocker-rm" "$@" ;;
+  remove|rm ) shift && "$dirname/shocker-remove" "$@" ;;
   route     ) shift && "$dirname/shocker-route" "$@" ;;
   start     ) shift && "$dirname/shocker-start" "$@" ;;
   stop      ) shift && "$dirname/shocker-stop" "$@" ;;
