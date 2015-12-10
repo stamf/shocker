@@ -75,7 +75,6 @@ case "$1" in
   commit    ) shift && "$dirname/shocker-commit" "$@" ;;
   cleanup   ) shift && "$dirname/shocker-cleanup" "$@" ;;
   export    ) shift && "$dirname/shocker-export" "$@" ;;
-  kill      ) shift && "$dirname/shocker-kill" "$@" ;;
   limit     ) shift && "$dirname/shocker-limit" "$@" ;;
   logs      ) shift && "$dirname/shocker-logs" "$@" ;;
   name      ) shift && "$dirname/shocker_name" "$@" ;;
