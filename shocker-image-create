@@ -36,7 +36,7 @@ done
 btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
 
 # copy (using reflink) all files in source dir to image dir
-cp -rf --reflink=auto "$1" "$btrfs_path/$uuid" > /dev/null
+cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
 
 # save image meta data
 readlink -f "$1" > "$btrfs_path/$uuid"/img.source
