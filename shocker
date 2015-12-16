@@ -2,22 +2,6 @@
 btrfs_path='/var/shocker'
 dirname=$(dirname "$(readlink -f "$0")")
 
-if [ "$(id -u)" -ne 0 ]; then
-  printf "shocker(1) should be executed as sudo\n" >&2
-  exit 1
-fi
-
-# check if btrfs is mounted and available
-if [ ! -d "$btrfs_path" ]; then
-  printf 'Error: %s does not exist\n' "$btrfs_path" >&2
-  exit 1
-fi
-sudo btrfs filesystem show "$btrfs_path" > /dev/null
-if [ "$?" -ne 0 ]; then
-  printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path" >&2
-  exit 1
-fi
-
 # source utility functions
 #shellcheck disable=SC1090
 . "$dirname"/utils.sh
@@ -56,21 +40,50 @@ cat << USAGE
 USAGE
 }
 
-shocker_image() {
-    case "$1" in
-      -h|--help ) usage && exit 0 ;;
-      list|ls   ) shift && "$dirname/shocker-image-list" "$@" ;;
-      pull      ) shift && "$dirname/shocker-image-pull" "$@" ;;
-      create    ) shift && "$dirname/shocker-image-create" "$@" ;;
-      change    ) shift && "$dirname/shocker-image-change" "$@" ;;
-      remove|rm ) shift && "$dirname/shocker-image-remove" "$@" ;;
-      *         ) usage && exit 1 ;;
-    esac
+verify_deps () {
+  if [ "$(id -u)" -ne 0 ]; then
+    printf "shocker(1) should be executed as sudo\n" >&2
+    exit 1
+  fi
+
+  # check if btrfs is mounted and available
+  if [ ! -d "$btrfs_path" ]; then
+    printf 'Error: %s does not exist\n' "$btrfs_path" >&2
+    exit 1
+  fi
+
+  sudo btrfs filesystem show "$btrfs_path" > /dev/null
+  if [ "$?" -ne 0 ]; then
+    printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path" >&2
+    exit 1
+  fi
 }
 
+shocker_image() {
+  case "$1" in
+    -h|--help ) usage && exit 0 ;;
+    list|ls   ) shift && "$dirname/shocker-image-list" "$@" ;;
+    pull      ) shift && "$dirname/shocker-image-pull" "$@" ;;
+    create    ) shift && "$dirname/shocker-image-create" "$@" ;;
+    change    ) shift && "$dirname/shocker-image-change" "$@" ;;
+    remove|rm ) shift && "$dirname/shocker-image-remove" "$@" ;;
+    *         ) usage && exit 1 ;;
+  esac
+}
+
+# assure commands are passed
 [ "$#" -ne 0 ] || { usage; exit 1; }
+
+# flags
 case "$1" in
   -h|--help ) usage && exit 0 ;;
+esac
+
+# verify command dependencies
+verify_deps
+
+# commands
+case "$1" in
   image     ) shift && shocker_image "$@" ;;
   commit    ) shift && "$dirname/shocker-commit" "$@" ;;
   cleanup   ) shift && "$dirname/shocker-cleanup" "$@" ;;
