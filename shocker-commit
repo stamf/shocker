@@ -1,6 +1,6 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
-dirname=$(dirname "$(readlink -f "$0")")
+readonly btrfs_path='/var/shocker'
+readonly dirname=$(dirname "$(readlink -f "$0")")
 
 #shellcheck disable=SC1090
 . "$dirname"/utils.sh
@@ -36,7 +36,7 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
-p1="$btrfs_path/$1"
-p2="$btrfs_path/$2"
+readonly p1="$btrfs_path/$1"
+readonly p2="$btrfs_path/$2"
 shocker_rm "$2" && btrfs subvolume snapshot "$p1" "$p2" > /dev/null
 echo "Created: $2"
