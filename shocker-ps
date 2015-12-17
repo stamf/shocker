@@ -1,6 +1,6 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
-dirname=$(dirname "$(readlink -f "$0")")
+readonly btrfs_path='/var/shocker'
+readonly dirname=$(dirname "$(readlink -f "$0")")
 
 # source helper utils
 . "$dirname"/utils.sh
@@ -28,8 +28,8 @@ printf "%-12s    %8s    %-18s    %s\n" 'CONTAINER_ID' 'STATE' 'IP' 'COMMAND'
 for ps in "$btrfs_path"/ps_*; do
   [ -e "$ps" ] || break
 
-  ps=$(basename "$ps")
-  state=$(get_state "$ps")
+  readonly ps=$(basename "$ps")
+  readonly state=$(get_state "$ps")
   ip=-
 
   case $state in
@@ -43,6 +43,6 @@ for ps in "$btrfs_path"/ps_*; do
     *      ) ansi="0";;
   esac
 
-  cmd="$(cat "$btrfs_path/$ps/$ps.cmd")"
+  readonly cmd="$(cat "$btrfs_path/$ps/$ps.cmd")"
   printf "%-12s    \x1b[%sm%8s\x1b[0m    %-18s    %s\n" "$ps" "$ansi" "$state" "$ip" "$cmd"
 done

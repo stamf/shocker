@@ -1,12 +1,12 @@
 #!/bin/bash
-dirname=$(dirname "$(readlink -f "$0")")
-btrfs_path='/var/shocker'
+readonly dirname=$(dirname "$(readlink -f "$0")")
+readonly btrfs_path='/var/shocker'
 
 #shellcheck disable=SC1090
 . "$dirname"/utils.sh
 
 shocker_init () {
-  uuid="img_$(shuf -i 42002-42254 -n 1)"
+  readonly uuid="img_$(shuf -i 42002-42254 -n 1)"
   [ -d "$1" ] || { printf "No directory named '%s' exists\n" "$1" >&2; exit 1; }
 
   shocker_exists "$uuid"
@@ -48,17 +48,17 @@ fn_get_ancestry () {
   "$registry/images/$id/ancestry"
 }
 
-token="$(fn_get_registry "$1")"
-registry='https://registry-1.docker.io/v1'
-id="$(fn_get_id "$1" "$2")"
+readonly token="$(fn_get_registry "$1")"
+readonly registry='https://registry-1.docker.io/v1'
+readonly id="$(fn_get_id "$1" "$2")"
 [ "${#id}" -ne 64 ] && echo "No image named '$1:$2' exists" >&2 && exit 1
 
-ancestry="$(fn_get_ancestry)"
+readonly ancestry="$(fn_get_ancestry)"
 IFS=','
-ancestry=(${ancestry//[\[\] \"]/})
+readonly ancestry=(${ancestry//[\[\] \"]/})
 
 IFS=' \n\t'
-tmp_uuid="img_$RANDOM"
+readonly tmp_uuid="img_$RANDOM"
 mkdir /tmp/"$tmp_uuid"
 for id in "${ancestry[@]}"; do
   curl -#L -H "Authorization: Token $token" \

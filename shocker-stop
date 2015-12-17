@@ -1,5 +1,5 @@
 #!/bin/sh
-dirname=$(dirname "$(readlink -f "$0")")
+readonly dirname=$(dirname "$(readlink -f "$0")")
 
 # source helper utils
 #shellcheck disable=SC1090
@@ -27,9 +27,9 @@ sig=TERM
 
 getopt -T >/dev/null
 if [ "$?" -eq 4 ]; then
-    args="$(getopt -n "$0" --long kill,help --options kh -- "$@")"
+  args="$(getopt -n "$0" --long kill,help --options kh -- "$@")"
 else
-    args="$(getopt -n "$0" kh -- "$@")"
+  args="$(getopt -n "$0" kh -- "$@")"
 fi
 
 [ $? -ne 0 ] && { usage; exit 2; }
@@ -51,7 +51,7 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
-state=$(get_state "$1")
+readonly state=$(get_state "$1")
 case $state in
   stopped) printf "Container '%s' is already stopped\n" "$1" >&2 ;;
   crashed) printf "Container '%s' crashed, 'shocker-cleanup\n" "$1" >&2 ;;

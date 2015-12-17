@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-btrfs_path='/var/shocker'
-dirname=$(dirname "$(readlink -f "$0")")
+readonly btrfs_path='/var/shocker'
+readonly dirname=$(dirname "$(readlink -f "$0")")
 
 # source utility functions
 #shellcheck disable=SC1090

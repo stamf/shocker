@@ -1,5 +1,5 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
+readonly btrfs_path='/var/shocker'
 
 usage () {
 cat << USAGE
@@ -30,8 +30,8 @@ done
 printf "IMAGE_ID\t\tSOURCE\n"
 for img in "$btrfs_path"/img_*; do
   if [ -e "$img" ]; then
-    img_id="$(basename "$img")"
-    img_source="$(cat "/$img/img.source")"
+    readonly img_id="$(basename "$img")"
+    readonly img_source="$(cat "/$img/img.source")"
     printf "%s\t\t%s\n" "$img_id" "$img_source"
   fi
 done

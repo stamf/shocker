@@ -1,7 +1,7 @@
 #!/bin/sh
-cgroups='cpu,cpuacct,memory'
-btrfs_path='/var/shocker'
-dirname=$(dirname "$(readlink -f "$0")")
+readonly cgroups='cpu,cpuacct,memory'
+readonly btrfs_path='/var/shocker'
+readonly dirname=$(dirname "$(readlink -f "$0")")
 
 #shellcheck disable=SC1090
 . "$dirname"/utils.sh
@@ -29,23 +29,23 @@ case "$1" in
 esac
 
 shocker_create_network() {
-  BRIDGE_DEV="$(get_bridge_dev)"
-  OUTBOUND_DEV="$(get_outbound_dev)"
-  GATEWAY="$(get_gateway)"
-  NETWORK="$(get_network)"
-  MASK="$(get_mask)"
+  readonly BRIDGE_DEV="$(get_bridge_dev)"
+  readonly OUTBOUND_DEV="$(get_outbound_dev)"
+  readonly GATEWAY="$(get_gateway)"
+  readonly NETWORK="$(get_network)"
+  readonly MASK="$(get_mask)"
 
-  cntid=$1
-  uuid="$(echo "$cntid" | sed 's/^ps_//')"
-  ip="$(int_to_ip "$(echo "$NETWORK $uuid + p" | dc)")"
-  mac="$(int_to_mac "$uuid")"
-  gwip="$(int_to_ip "$GATEWAY")"
+  readonly cntid=$1
+  readonly uuid="$(echo "$cntid" | sed 's/^ps_//')"
+  readonly ip="$(int_to_ip "$(echo "$NETWORK $uuid + p" | dc)")"
+  readonly mac="$(int_to_mac "$uuid")"
+  readonly gwip="$(int_to_ip "$GATEWAY")"
 
   ip link show "$BRIDGE_DEV" 2>/dev/null
   if [ "$?" -ne 0 ]; then
-      ip link add "$BRIDGE_DEV" type bridge
-      ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
-      ip link set "$BRIDGE_DEV" up
+    ip link add "$BRIDGE_DEV" type bridge
+    ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
+    ip link set "$BRIDGE_DEV" up
   fi
 
   iptables -t nat -C POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" \
@@ -75,7 +75,7 @@ shocker_create_mounts() {
 }
 
 shocker_create_cgroups() {
-  cntid=$1
+  readonly cntid=$1
   # create and set cgroup limits
   cgcreate -g "$cgroups:/$cntid"
   cgset -r cpu.shares=512 "$cntid"
@@ -83,17 +83,17 @@ shocker_create_cgroups() {
 }
 
 shocker_log_command() {
-  cntid=$1
+  readonly cntid=$1
   shift
   # log command to container
   echo "$@" >> "$btrfs_path/$cntid/${cntid}.cmd"
 }
 
 shocker_pre_create() {
-  NHOSTS="$(get_nhosts)"
+  readonly NHOSTS="$(get_nhosts)"
 
-  uuid=$(gen_uuid "$NHOSTS")
-  cntid="ps_$uuid"
+  readonly uuid=$(gen_uuid "$NHOSTS")
+  readonly cntid="ps_$uuid"
 
   if [ "$#" -le 1 ]; then
     printf "Incorrect argument count\n" >&2
@@ -117,7 +117,7 @@ shocker_pre_create() {
     exit 1
   fi
 
-  gwip=$(shocker_create_network "$cntid")
+  readonly gwip=$(shocker_create_network "$cntid")
   btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$cntid" > /dev/null
   shocker_create_mounts "$cntid"
   shocker_log_command "$cntid" "$@"
@@ -144,7 +144,7 @@ shocker_post_create() {
 }
 
 shocker_execute() {
-  cntid="$1"
+  readonly cntid="$1"
   shift;
   cgexec -g "$cgroups:$cntid" \
     ip netns exec netns_"$cntid" \
@@ -155,7 +155,7 @@ shocker_execute() {
 }
 
 shocker_restart() {
-  cntid=$1
+  readonly cntid=$1
 
   if [ "$#" -le 1 ]; then
     printf "Incorrect argument count\n" >&2
@@ -179,7 +179,7 @@ shocker_restart() {
 }
 
 shocker_create() {
-  cntid=$(shocker_pre_create "$@") || exit 1
+  readonly cntid=$(shocker_pre_create "$@") || exit 1
   shocker_execute "$cntid" "${@:2}"
   shocker_post_create "$cntid"
 }
@@ -191,14 +191,14 @@ shocker_exec() {
       | awk '$2 == "init" {print $1}'
   }
 
-  cid="$(fn_mine "$1")"
+  readonly cid="$(fn_mine "$1")"
   nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
 }
 
 shocker_cleanup() {
   #shellcheck disable=SC2012
   ls -rtd "$btrfs_path"/ps_* | while read -r ps; do
-    ps=$(basename "$ps")
+    readonly ps=$(basename "$ps")
     if [ "$(get_state "$ps")" = "crashed" ]; then
       findmnt -r | grep "^$ps/" | cut -f1 -d' ' | xargs umount
       ip link del "veth0_$ps" >/dev/null 2>&1
@@ -209,8 +209,8 @@ shocker_cleanup() {
   done
 }
 
-cstate=$(get_state "$1")
-ctype=$(get_type "$1")
+readonly cstate=$(get_state "$1")
+readonly ctype=$(get_type "$1")
 
 case "$ctype" in
   image    ) shocker_create "$@" ;;

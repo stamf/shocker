@@ -1,6 +1,6 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
-dirname=$(dirname "$(readlink -f "$0")")
+readonly btrfs_path='/var/shocker'
+readonly dirname=$(dirname "$(readlink -f "$0")")
 
 #shellcheck disable=SC1090
 . "$dirname"/utils.sh
@@ -28,8 +28,8 @@ esac
 
 # generate image id
 while true; do
-    uuid="$(mktemp -u img_XXXXX)"
-    [ ! -e "$btrfs_path/$uuid" ] && break
+  uuid="$(mktemp -u img_XXXXX)"
+  [ ! -e "$btrfs_path/$uuid" ] && break
 done
 
 # create new empty subvolume
