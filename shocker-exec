@@ -1,0 +1,56 @@
+#!/bin/sh
+cgroups='cpu,cpuacct,memory'
+btrfs_path='/var/shocker'
+dirname=$(dirname "$(readlink -f "$0")")
+
+#shellcheck disable=SC1090
+. "$dirname"/utils.sh
+
+usage () {
+cat << USAGE
+  shocker-exec - run a command inside a container
+
+  Usage: shocker exec <container> <command>
+
+  Options:
+   -h, --help output usage information
+
+  Examples:
+   $ shocker exec ps_1234 top   # run top inside a running container
+USAGE
+}
+
+[ "$#" -eq 0 ] && { usage; exit 1; }
+case "$1" in
+  -h|--help ) usage && exit 1 ;;
+esac
+
+shocker_exec() {
+  fn_mine () {
+    xargs ps ho pid,command \
+      < "/sys/fs/cgroup/cpu/$1/tasks" \
+      | awk '$2 == "unshare" {print $1}' \
+      | xargs pgrep -P | head -1
+  }
+
+  cid="$(fn_mine "$1")"
+  shocker_log_command "$1" "${@:2}"
+  nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
+}
+
+cstate=$(get_state "$1")
+ctype=$(get_type "$1")
+
+case "$ctype" in
+  image    ) printf "'%s' does not exist as a container\n" "$1" >&2; exit 1 ;;
+  container)
+    case "$cstate" in
+      running) shocker_exec "$@" ;;
+      stopped) printf "Container '%s' is not running\n" "$1" >&2; exit 1 ;;
+      crashed) printf "Container '%s' is not running\n" "$1" >&2; exit 1 ;;
+      missing) printf "Container '%s' does not exist\n" "$1" >&2; exit 1 ;;
+      *      ) usage; exit 1 ;;
+    esac ;;
+  unknown  ) printf "Can not determine type of '%s'\n" "$1" >&2; exit 1 ;;
+  *        ) usage; exit 1 ;;
+esac

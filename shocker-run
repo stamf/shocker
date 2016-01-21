@@ -8,18 +8,15 @@ dirname=$(dirname "$(readlink -f "$0")")
 
 usage () {
 cat << USAGE
-  shocker-start - create and/or run a container
+  shocker-run - create and/or run a container
 
-  Usage: shocker start <image|container> <command>
+  Usage: shocker run <image|container> <command>
 
   Options:
    -h, --help output usage information
 
   Examples:
-   $ shocker start img_1234 ash   # create a container and run ash shell
-   $ shocker start ps_33111 ash   # create a container and run ash shell
-   $ shocker image create . archive.tgz # create a new image from current dir
-                                        # with archive.tgz layed over it
+   $ shocker run img_1234 ash   # create a container and run ash shell
 USAGE
 }
 
@@ -41,7 +38,7 @@ shocker_create_network() {
   mac="$(int_to_mac "$uuid")"
   gwip="$(int_to_ip "$GATEWAY")"
 
-  ip link show "$BRIDGE_DEV" 2>/dev/null
+  ip link show "$BRIDGE_DEV" >/dev/null 2>&1
   if [ "$?" -ne 0 ]; then
       ip link add "$BRIDGE_DEV" type bridge
       ip addr add "$(int_to_ip "$GATEWAY")/$MASK" dev "$BRIDGE_DEV"
@@ -49,10 +46,10 @@ shocker_create_network() {
   fi
 
   iptables -t nat -C POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" \
-      -o "$OUTBOUND_DEV" -j MASQUERADE 2>/dev/null
+      -o "$OUTBOUND_DEV" -j MASQUERADE >/dev/null 2>&1
   if [ "$?" -ne 0 ]; then
     iptables -t nat -A POSTROUTING -s "$(int_to_ip "$NETWORK")/$MASK" \
-        -o "$OUTBOUND_DEV" -j MASQUERADE 2>/dev/null
+        -o "$OUTBOUND_DEV" -j MASQUERADE >/dev/null 2>&1
   fi
 
   ip netns add netns_"$cntid"
@@ -80,13 +77,6 @@ shocker_create_cgroups() {
   cgcreate -g "$cgroups:/$cntid"
   cgset -r cpu.shares=512 "$cntid"
   cgset -r memory.limit_in_bytes=536870912 "$cntid"
-}
-
-shocker_log_command() {
-  cntid=$1
-  shift
-  # log command to container
-  echo "$@" >> "$btrfs_path/$cntid/${cntid}.cmd"
 }
 
 shocker_pre_create() {
@@ -136,13 +126,6 @@ shocker_pre_create() {
   echo "$cntid"
 }
 
-shocker_post_create() {
-  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount
-  ip link del dev veth0_"$1"
-  ip netns del netns_"$1"
-  cgdelete -g "$cgroups:/$1" >/dev/null 2>&1 /dev/null
-}
-
 shocker_execute() {
   cntid="$1"
   shift;
@@ -150,11 +133,17 @@ shocker_execute() {
     ip netns exec netns_"$cntid" \
     unshare -fmuip --mount-proc \
     chroot "$btrfs_path/$cntid" \
-    /sbin/init
-    #/bin/sh -c "source /root/init; $*"
+    /bin/sh -c "source /root/init; $*"
 }
 
-shocker_restart() {
+shocker_stop() {
+  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount
+  ip link del dev veth0_"$1"
+  ip netns del netns_"$1"
+  cgdelete -g "$cgroups:/$1" >/dev/null 2>&1 /dev/null
+}
+
+shocker_start() {
   cntid=$1
 
   if [ "$#" -le 1 ]; then
@@ -168,31 +157,22 @@ shocker_restart() {
     exit 1
   fi
 
-  shocker_create_network "$cntid"
+  gwip=$(shocker_create_network "$cntid")
   shocker_create_mounts "$cntid"
-  shocker_log_command "$cntid" "$@"
   shocker_create_cgroups "$cntid"
+  echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
 
   shocker_execute "$cntid" "${@:2}"
 
-  shocker_post_create "$cntid"
+  shocker_stop "$cntid"
 }
 
 shocker_create() {
   cntid=$(shocker_pre_create "$@") || exit 1
+
   shocker_execute "$cntid" "${@:2}"
-  shocker_post_create "$cntid"
-}
 
-shocker_exec() {
-  fn_mine () {
-    xargs ps ho pid,command \
-      < "/sys/fs/cgroup/cpu/$1/tasks" \
-      | awk '$2 == "init" {print $1}'
-  }
-
-  cid="$(fn_mine "$1")"
-  nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
+  shocker_stop "$cntid"
 }
 
 shocker_cleanup() {
@@ -216,9 +196,10 @@ case "$ctype" in
   image    ) shocker_create "$@" ;;
   container)
     case "$cstate" in
-      running) shocker_exec "$@" ;;
-      stopped) shocker_restart "$@" ;;
-      crashed) shocker_cleanup; shocker_restart "$@" ;;
+      running) shocker_start "$@" ;;
+      stopped) shocker_start "$@" ;;
+      crashed) "$dirname"/shocker-cleanup;
+               shocker_start "$@" ;;
       missing) printf "Container '%s' does not exist\n" "$1" >&2; exit 1 ;;
       *      ) usage; exit 1 ;;
     esac ;;

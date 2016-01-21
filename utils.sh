@@ -14,6 +14,13 @@ shocker_running() {
   return $?
 }
 
+shocker_log_command() {
+  cntid=$1
+  shift
+  # log command to container
+  echo "$@" >> "$btrfs_path/$cntid/${cntid}.cmd"
+}
+
 ip_to_int() { #Transform ipv4 address into int
   # shellcheck disable=SC2001
   eval set -- "$(echo "$1" | sed 's|[./]| |g')"

@@ -12,7 +12,8 @@ cat << USAGE
 
   Commands:
     list           # list containers
-    start          # start a container
+    run            # create a container and run a command
+    exec           # run a command in a running container
     change         # modify a container
     stop           # stop a container
     remove         # remove a container
@@ -30,7 +31,8 @@ cat << USAGE
     $ shocker image pull -h              # output usage for the pull command
     $ shocker image pull alpine@latest   # fetch alpine linux from docker
     $ shocker image list                 # list local images
-    $ shocker start img_1235 ash         # start an ash shell from an image
+    $ shocker run img_1235 ash           # create a container and run an ash shell
+    $ shocker exec ps_1235 top           # run top in a running container
     $ shocker change img_1235 -n beep    # rename a container
     $ shocker change beep -m 500m        # change a container's memory limit
     $ shocker list                       # list containers
@@ -87,12 +89,13 @@ case "$1" in
   image     ) shift && shocker_image "$@" ;;
   commit    ) shift && "$dirname/shocker-commit" "$@" ;;
   cleanup   ) shift && "$dirname/shocker-cleanup" "$@" ;;
+  exec      ) shift && "$dirname/shocker-exec" "$@" ;;
   export    ) shift && "$dirname/shocker-export" "$@" ;;
   limit     ) shift && "$dirname/shocker-limit" "$@" ;;
   logs      ) shift && "$dirname/shocker-logs" "$@" ;;
-  ps        ) shift && "$dirname/shocker-ps" "$@" ;;
+  list      ) shift && "$dirname/shocker-list" "$@" ;;
   remove|rm ) shift && "$dirname/shocker-remove" "$@" ;;
-  start     ) shift && "$dirname/shocker-start" "$@" ;;
+  run       ) shift && "$dirname/shocker-run" "$@" ;;
   stop      ) shift && "$dirname/shocker-stop" "$@" ;;
   *         ) usage && exit 1 ;;
 esac
