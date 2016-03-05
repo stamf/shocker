@@ -19,7 +19,7 @@ USAGE
 
 file_count="$(find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' | wc -l)"
 if [ "$file_count" -eq 0 ]; then
-  printf "No running containers\n" >&2
+  printf "No containers found in ${btrfs_path}\n" >&2
   exit 0
 fi
 
