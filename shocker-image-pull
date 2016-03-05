@@ -1,6 +1,5 @@
 #!/bin/bash
 dirname=$(dirname "$(readlink -f "$0")")
-btrfs_path='/var/shocker'
 
 #shellcheck disable=SC1090
 . "$dirname"/utils.sh
@@ -9,13 +8,13 @@ shocker_init () {
   uuid="img_$(shuf -i 42002-42254 -n 1)"
   [ -d "$1" ] || { printf "No directory named '%s' exists\n" "$1" >&2; exit 1; }
 
-  shocker_exists "$uuid"
+  shocker_image_exists "$uuid"
   [ "$?" -eq 0 ] && bocker_run "$@"
 
-  btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
-  cp -rf --reflink=auto "$1"/* "$btrfs_path/$uuid" > /dev/null
-  [ -f "$btrfs_path/$uuid"/img.source ] || {
-    echo "$1" > "$btrfs_path/$uuid"/img.source
+  btrfs subvolume create "${image_path}/${uuid}" > /dev/null
+  cp -rf --reflink=auto "$1"/* "${image_path}/${uuid}" > /dev/null
+  [ -f "${image_path}/${uuid}"/img.source ] || {
+    echo "$1" > "${image_path}/${uuid}"/img.source
   }
 
   printf "Created: %s\n" "$uuid"

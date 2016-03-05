@@ -9,14 +9,14 @@ dirname=$(dirname "$(readlink -f "$0")")
 
 usage () {
 cat << USAGE
-  shocker-rm - remove stored images or containers
-  Usage: shocker rm <image-id>|<container-id>
+  shocker-image-rm - remove stored images
+  Usage: shocker image remove <image-id>
 
   Options:
     -h, --help output usage information
 
   Examples:
-    $ shocker rm img_1234  # delete 'img_1234'
+    $ shocker image remove img_1234  # delete 'img_1234'
 USAGE
 }
 
@@ -25,12 +25,12 @@ case "$1" in
   -h|--help ) usage && exit 1 ;;
 esac
 
-shocker_exists "$1"
+shocker_image_exists "$1"
 if [ "$?" -ne 0 ]; then
-  printf "No container named '%s' exists\n" "$1" >&2
+  printf "No image named '%s' exists\n" "$1" >&2
   exit 1
 fi
 
-btrfs subvolume delete "$btrfs_path"/"$1" > /dev/null
+btrfs subvolume delete "${image_path}/$1" > /dev/null
 cgdelete -g "$cgroups":/"$1" > /dev/null 2>&1
 printf "Removed: %s\n" "$1"

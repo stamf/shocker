@@ -59,6 +59,18 @@ verify_deps () {
     printf 'Error: %s is not a btrfs filesystem\n' "$btrfs_path" >&2
     exit 1
   fi
+
+  mkdir -p "${image_path}" >/dev/null
+  if [ "$?" -ne 0 ]; then
+    printf 'Error: Could not create image path %s\n' "${image_path}" >&2
+    exit 1
+  fi
+
+  mkdir -p "${container_path}" >/dev/null
+  if [ "$?" -ne 0 ]; then
+    printf 'Error: Could not create container path %s\n' "${container_path}" >&2
+    exit 1
+  fi
 }
 
 shocker_image() {

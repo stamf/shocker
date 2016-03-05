@@ -1,6 +1,4 @@
 #!/bin/sh
-cgroups='cpu,cpuacct,memory'
-btrfs_path='/var/shocker'
 dirname=$(dirname "$(readlink -f "$0")")
 
 #shellcheck disable=SC1090
@@ -16,7 +14,7 @@ cat << USAGE
    -h, --help output usage information
 
   Examples:
-   $ shocker run img_1234 ash   # create a container and run ash shell
+    $ shocker run img_1234 /bin/ash   # create a container and run ash shell
 USAGE
 }
 
@@ -33,7 +31,7 @@ shocker_create_network() {
   MASK="$(get_mask)"
 
   cntid=$1
-  uuid="$(echo "$cntid" | sed 's/^ps_//')"
+  uuid="$(echo "$cntid" | sed 's/^c_//')"
   ip="$(int_to_ip "$(echo "$NETWORK $uuid + p" | dc)")"
   mac="$(int_to_mac "$uuid")"
   gwip="$(int_to_ip "$GATEWAY")"
@@ -68,7 +66,7 @@ shocker_create_network() {
 
 shocker_create_mounts() {
   # create bind mounts for devpts
-  mount -o bind /dev/pts "$btrfs_path/$1/dev/pts"
+  mount -o bind /dev/pts "${container_path}/$1/dev/pts"
 }
 
 shocker_create_cgroups() {
@@ -83,7 +81,7 @@ shocker_pre_create() {
   NHOSTS="$(get_nhosts)"
 
   uuid=$(gen_uuid "$NHOSTS")
-  cntid="ps_$uuid"
+  cntid="c_$uuid"
 
   if [ "$#" -le 1 ]; then
     printf "Incorrect argument count\n" >&2
@@ -95,31 +93,40 @@ shocker_pre_create() {
     exit 1
   fi
 
-  shocker_exists "$1"
+  shocker_container_exists "$1"
   if [ "$?" -ne 0 ]; then
-    printf "No image named '%s' exists\n" "$1" >&2
-    exit 1
+    shocker_image_exists "$1"
+    if [ "$?" -ne 0 ]; then
+      printf "No image or container named '%s' exists\n" "$1" >&2
+      exit 1
+    else
+      base_path="${image_path}/$1"
+    fi
+  else
+    base_path="${container_path}/$1"
   fi
 
-  shocker_exists "$cntid"
+  shocker_container_exists "$cntid"
   if [ "$?" -eq 0 ]; then
     printf "UUID conflict, '%s' already exists\n" "$cntid" >&2
     exit 1
   fi
 
+  target_path="${container_path}/${cntid}"
+
   gwip=$(shocker_create_network "$cntid")
-  btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$cntid" > /dev/null
+  btrfs subvolume snapshot "$base_path" "$target_path" > /dev/null
   shocker_create_mounts "$cntid"
   shocker_log_command "$cntid" "$@"
 
   # copy init scripts
-  echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
-  cp "$dirname/init" "$btrfs_path/$cntid/root/init"
+  echo nameserver "$gwip" > "${target_path}/etc/resolv.conf"
+  cp "${dirname}/init" "${target_path}/root/init"
 
   # create hierarchy id for container
   #shellcheck disable=SC2094
-  echo "$(cat "$btrfs_path/$cntid/.tree")" "$(date +%s)" "$cntid" "$@" \
-      | md5sum | cut -f1 -d' ' >> "$btrfs_path/$cntid/.tree"
+  echo "$(cat "${target_path}/.tree")" "$(date +%s)" "$cntid" "$@" \
+      | md5sum | cut -f1 -d' ' >> "${target_path}/.tree"
 
   shocker_create_cgroups "$cntid"
 
@@ -132,12 +139,12 @@ shocker_execute() {
   cgexec -g "$cgroups:$cntid" \
     ip netns exec netns_"$cntid" \
     unshare -fmuip --mount-proc \
-    chroot "$btrfs_path/$cntid" \
+    chroot "${container_path}/${cntid}" \
     /bin/sh -c "source /root/init; $*"
 }
 
 shocker_stop() {
-  findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount
+  findmnt -r | grep "^${container_path}/$1/" | cut -f1 -d' ' | xargs umount
   ip link del dev veth0_"$1"
   ip netns del netns_"$1"
   cgdelete -g "$cgroups:/$1" >/dev/null 2>&1 /dev/null
@@ -151,7 +158,7 @@ shocker_start() {
     exit 1
   fi
 
-  shocker_exists "$1"
+  shocker_image_exists "$1"
   if [ "$?" -ne 0 ]; then
     printf "No image named '%s' exists\n" "$1" >&2
     exit 1
@@ -160,7 +167,7 @@ shocker_start() {
   gwip=$(shocker_create_network "$cntid")
   shocker_create_mounts "$cntid"
   shocker_create_cgroups "$cntid"
-  echo nameserver "$gwip" > "$btrfs_path/$cntid/etc/resolv.conf"
+  echo nameserver "$gwip" > "${container_path}/${cntid}/etc/resolv.conf"
 
   shocker_execute "$cntid" "${@:2}"
 

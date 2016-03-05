@@ -1,0 +1,33 @@
+#!/bin/sh
+dirname=$(dirname "$(readlink -f "$0")")
+. "$dirname/utils.sh"
+
+usage() {
+cat << USAGE
+  shocker-image-rename - rename image
+  Usage: shocker image rename <image_id> <new_image_id>
+
+  Options:
+    -h, --help output usage information
+
+  Examples:
+    $ shocker image rename img_42913 base_postgres_db
+USAGE
+}
+
+[ "$#" -eq 2 ] || { usage; exit 1; }
+
+shocker_image_exists "$1"
+if [ "$?" -ne 0 ]; then
+  printf "No image named '%s' exists\n" "$1" >&2
+  exit 1
+fi
+
+shocker_image_exists "$2"
+if [ "$?" -eq 0 ]; then
+  printf "Image '%s' already exists\n" "$2" >&2
+  exit 1
+fi
+
+mv "${image_path}/$1" "${image_path}/$2" >/dev/null
+printf "Image '%s' renamed to '%s'\n" "$1" "$2"

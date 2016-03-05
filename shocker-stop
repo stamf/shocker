@@ -47,7 +47,7 @@ while true; do
   esac
 done
 
-shocker_exists "$1"
+shocker_container_exists "$1"
 if [ "$?" -ne 0 ]; then
   printf "No container named '%s' exists\n" "$1" >&2
   exit 1
@@ -64,7 +64,7 @@ sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
   kill -s "$sig" -- "$proc" 2>/dev/null
 done
 
-findmnt -r | grep "^$btrfs_path/$1/" | cut -f1 -d' ' | xargs umount
+findmnt -r | grep "^${container_path}/$1/" | cut -f1 -d' ' | xargs umount
 ip link del dev veth0_"$1"
 ip netns del netns_"$1"
 cgdelete -g "$cgroups:/$1" >/dev/null 2>&1 /dev/null

@@ -1,10 +1,19 @@
 #!/bin/sh
 
 btrfs_path='/var/shocker'
+image_path="${btrfs_path}/images"
+container_path="${btrfs_path}/containers"
+cgroups='cpu,cpuacct,memory'
+
 dirname=$(dirname "$(readlink -f "$0")")
 
-shocker_exists() {
-  btrfs subvolume list "$btrfs_path" | grep -qw "$1"
+shocker_image_exists() {
+  btrfs subvolume list "${image_path}" | grep -qw "$1"
+  return $?
+}
+
+shocker_container_exists() {
+  btrfs subvolume list "${container_path}" | grep -qw "$1"
   return $?
 }
 
@@ -18,7 +27,7 @@ shocker_log_command() {
   cntid=$1
   shift
   # log command to container
-  echo "$@" >> "$btrfs_path/$cntid/${cntid}.cmd"
+  echo "$@" >> "${container_path}/${cntid}/${cntid}.cmd"
 }
 
 ip_to_int() { #Transform ipv4 address into int
@@ -79,7 +88,7 @@ addr_to_network() { #Transforms ip/mask into an int representing the network
 }
 
 get_state() {
-  shocker_exists "$1"
+  shocker_container_exists "$1"
   [ "$?" -ne 0 ] && echo missing && exit
   [ -d "/sys/fs/cgroup/cpuacct/$1" ] && cgdef=1 || cgdef=0
   grep -q . "/sys/fs/cgroup/cpuacct/$1/tasks" 2>/dev/null && procs=1 || procs=0
@@ -94,14 +103,11 @@ get_state() {
 }
 
 get_type() {
-  shocker_exists "$1"
-  [ "$?" -ne 0 ] && echo unknown && return 0
-
-  echo "$1" | grep -q '^img_'
-  [ "$?" -eq 0 ] && echo 'image' && return 0
-
-  echo "$1" | grep -q '^ps_'
+  shocker_container_exists "$1"
   [ "$?" -eq 0 ] && echo 'container' && return 0
+
+  shocker_image_exists "$1"
+  [ "$?" -eq 0 ] && echo 'image' && return 0
 
   echo 'unknown' && return 0
 }
@@ -147,8 +153,8 @@ gen_uuid() {
   fifo=$(mktemp -p /tmp -u XXXX)
   mkfifo "$fifo"
   seq -f "%010g" 2 "$1" > "$fifo" &
-  find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' \
-    | sed 's#^.*/ps_##' \
+  find "${container_path}" -maxdepth 1 -type d -name 'c_*' \
+    | sed 's#^.*/c_##' \
     | xargs printf "%010d\n" \
     | sort \
     | comm -1 -3 - "$fifo" \
