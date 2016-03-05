@@ -22,6 +22,7 @@ cat << USAGE
     image create   # create an image
     image change   # modify an image
     image remove   # remove an image
+    image rename   # rename an image
 
   Options:
     -h, --help     output usage information
@@ -31,6 +32,8 @@ cat << USAGE
     $ shocker image pull -h              # output usage for the pull command
     $ shocker image pull alpine@latest   # fetch alpine linux from docker
     $ shocker image list                 # list local images
+    $ shocker image rename img_123 base  # rename img_123 to base
+    $ shocker image remove base          # remove image named base
     $ shocker run img_1235 ash           # create a container and run an ash shell
     $ shocker exec ps_1235 top           # run top in a running container
     $ shocker change img_1235 -n beep    # rename a container
@@ -38,7 +41,6 @@ cat << USAGE
     $ shocker list                       # list containers
     $ shocker stop beep                  # stop a running container
     $ shocker remove beep                # remove a stopped container
-    $ shocker image remove img_1235      # remove a local image
 USAGE
 }
 
@@ -81,6 +83,7 @@ shocker_image() {
     create    ) shift && "$dirname/shocker-image-create" "$@" ;;
     change    ) shift && "$dirname/shocker-image-change" "$@" ;;
     remove|rm ) shift && "$dirname/shocker-image-remove" "$@" ;;
+    rename|mv ) shift && "$dirname/shocker-image-rename" "$@" ;;
     *         ) usage && exit 1 ;;
   esac
 }

@@ -1,36 +1,32 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
-dirname=$(dirname "$(readlink -f "$0")")
 
-# source helper utils
-. "$dirname"/utils.sh
+. "$(dirname "$(readlink -f "$0")")"/utils.sh
 
 usage () {
 cat << USAGE
-  shocker-ps - list containers
-  Usage: shocker ps
+  shocker-list - list containers
+  Usage: shocker list
 
   Examples:
-   $ shocker ps   # list container
+   $ shocker list   # list containers
 USAGE
 }
 
 [ "$#" -eq 0 ] || { usage; exit 1; }
 
-file_count="$(find "$btrfs_path" -maxdepth 1 -type d -name 'ps_*' | wc -l)"
-if [ "$file_count" -eq 0 ]; then
-  printf "No containers found in ${btrfs_path}\n" >&2
+count="$(find "${container_path}" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+if [ "$count" -eq 0 ]; then
+  printf "No containers found in ${container_path}\n" >&2
   exit 0
 fi
 
 printf "%-12s    %8s    %-18s    %s\n" 'CONTAINER_ID' 'STATE' 'IP' 'COMMAND'
+for container in "${container_path}"/*; do
+  [ -e "$container" ] || break
 
-for ps in "$btrfs_path"/ps_*; do
-  [ -e "$ps" ] || break
-
-  ps=$(basename "$ps")
+  ps=$(basename "$container")
   state=$(get_state "$ps")
-  ip=-
+  ip=
 
   case $state in
     running)
@@ -43,6 +39,6 @@ for ps in "$btrfs_path"/ps_*; do
     *      ) ansi="0";;
   esac
 
-  cmd="$(cat "$btrfs_path/$ps/$ps.cmd")"
+  cmd="$(cat "${container}/${ps}.cmd")"
   printf "%-12s    \x1b[%sm%8s\x1b[0m    %-18s    %s\n" "$ps" "$ansi" "$state" "$ip" "$cmd"
 done

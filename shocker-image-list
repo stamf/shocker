@@ -1,16 +1,17 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
+
+. "$(dirname $(readlink -f "$0"))/utils.sh"
 
 usage () {
 cat << USAGE
-  shocker-images - list images
-  Usage: shocker images
+  shocker-image-list - list images
+  Usage: shocker image list
 
   Options:
    -h, --help output usage information
 
   Examples:
-   $ shocker images   # list images
+   $ shocker image list   # list images
 USAGE
 }
 
@@ -19,19 +20,12 @@ case "$1" in
 esac
 [ "$#" -eq 0 ] || { usage; exit 1; }
 
-# check if images exist
-for img in "$btrfs_path"/img_*; do
-  [ -e "$img/img.source" ] && break
-  printf 'No images found in %s\n' "$btrfs_path" >&2
-  exit 0
-done
-
 # print list of available images
-printf "IMAGE_ID\t\tSOURCE\n"
-for img in "$btrfs_path"/img_*; do
-  if [ -e "$img" ]; then
-    img_id="$(basename "$img")"
-    img_source="$(cat "/$img/img.source")"
-    printf "%s\t\t%s\n" "$img_id" "$img_source"
-  fi
-done
+{ printf "IMAGE_ID\tSOURCE\n";
+  for img in "${image_path}"/*; do
+    if [ -e "$img" ] && [ -e "$img/img.source" ]; then
+      img_id="$(basename "$img")"
+      img_source="$(cat "/$img/img.source")"
+      printf "%s\t%s\n" "$img_id" "$img_source"
+    fi
+  done; } | column -t
