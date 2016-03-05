@@ -182,10 +182,10 @@ case "$ctype" in
   image    ) shocker_create "$@" ;;
   container)
     case "$cstate" in
-      running) shocker_start "$@" ;;
-      stopped) shocker_start "$@" ;;
+      running) shocker_create "$@" ;;
+      stopped) shocker_create "$@" ;;
       crashed) "$dirname"/shocker-cleanup;
-               shocker_start "$@" ;;
+               shocker_create "$@" ;;
       missing) printf "Container '%s' does not exist\n" "$1" >&2; exit 1 ;;
       *      ) usage; exit 1 ;;
     esac ;;
