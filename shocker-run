@@ -147,7 +147,7 @@ shocker_stop() {
   findmnt -r | grep "^${container_path}/$1/" | cut -f1 -d' ' | xargs umount
   ip link del dev veth0_"$1"
   ip netns del netns_"$1"
-  cgdelete -g "$cgroups:/$1" >/dev/null 2>&1 /dev/null
+  cgdelete -g "$cgroups:$1" >/dev/null 2>&1
 }
 
 shocker_start() {
