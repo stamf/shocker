@@ -5,17 +5,21 @@ dirname=$(dirname "$(readlink -f "$0")")
 . "$dirname"/utils.sh
 
 shocker_init () {
-  uuid="img_$(shuf -i 42002-42254 -n 1)"
   [ -d "$1" ] || { printf "No directory named '%s' exists\n" "$1" >&2; exit 1; }
 
-  shocker_image_exists "$uuid"
-  [ "$?" -eq 0 ] && bocker_run "$@"
+  while true; do
+    uuid="$(mktemp -u img_XXXXX)"
+    [ ! -e "${image_path}/${uuid}" ] && break;
+  done
 
   btrfs subvolume create "${image_path}/${uuid}" > /dev/null
   cp -rf --reflink=auto "$1"/* "${image_path}/${uuid}" > /dev/null
   [ -f "${image_path}/${uuid}"/img.source ] || {
     echo "$1" > "${image_path}/${uuid}"/img.source
   }
+
+  echo "$(cat "${image_path}/${uuid}/img.source")" "$(date +%s)" "$RANDOM" \
+    | md5sum | cut -f1 -d' ' > "${image_path}/${uuid}/.tree"
 
   printf "Created: %s\n" "$uuid"
 }

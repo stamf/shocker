@@ -8,12 +8,12 @@ cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
 shocker_image_exists() {
-  btrfs subvolume list "${image_path}" | grep -qw "$1"
+  btrfs subvolume list "${btrfs_path}" | grep -qw "images/$1"
   return $?
 }
 
 shocker_container_exists() {
-  btrfs subvolume list "${container_path}" | grep -qw "$1"
+  btrfs subvolume list "${btrfs_path}" | grep -qw "containers/$1"
   return $?
 }
 
@@ -140,7 +140,10 @@ get_gateway () {
 get_outbound_dev() {
   #shellcheck disable=SC1090
   . "$dirname"/settings.conf 2>/dev/null
-  echo "${OUTBOUND_DEV:-eth0}"
+  echo "${OUTBOUND_DEV:-auto}"
+  if [ "$OUTBOUND_DEV" == "auto" ]; then
+    OUTBOUND_DEV=$(ip route | awk '/^default via/ { print $5 }')
+  fi
 }
 
 get_bridge_dev () {

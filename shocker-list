@@ -20,7 +20,7 @@ if [ "$count" -eq 0 ]; then
   exit 0
 fi
 
-printf "%-12s    %8s    %-18s    %s\n" 'CONTAINER_ID' 'STATE' 'IP' 'COMMAND'
+printf "%-12s    %8s    %-18s    %s\n" 'CONTAINER_ID' 'STATE' 'IP' 'PARENT'
 for container in "${container_path}"/*; do
   [ -e "$container" ] || break
 
@@ -39,6 +39,6 @@ for container in "${container_path}"/*; do
     *      ) ansi="0";;
   esac
 
-  cmd="$(cat "${container}/${ps}.cmd")"
-  printf "%-12s    \x1b[%sm%8s\x1b[0m    %-18s    %s\n" "$ps" "$ansi" "$state" "$ip" "$cmd"
+  parent="$(cat "${container}/.parent.id" 2>/dev/null)"
+  printf "%-12s    \x1b[%sm%8s\x1b[0m    %-18s    %s\n" "$ps" "$ansi" "$state" "${ip:--}" "${parent:--}"
 done

@@ -1,5 +1,4 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
 dirname=$(dirname "$(readlink -f "$0")")
 
 #shellcheck disable=SC1090
@@ -19,7 +18,7 @@ cat << USAGE
 USAGE
 }
 
-[ "$#" -eq 1 ] || { usage; exit 1; }
+[ "$#" -eq 2 ] || { usage; exit 1; }
 case "$1" in
   -h|--help ) usage && exit 1 ;;
 esac

@@ -1,5 +1,4 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
 dirname=$(dirname "$(readlink -f "$0")")
 
 #shellcheck disable=SC1090
@@ -29,23 +28,23 @@ esac
 # generate image id
 while true; do
     uuid="$(mktemp -u img_XXXXX)"
-    [ ! -e "$btrfs_path/$uuid" ] && break
+    [ ! -e "${image_path}/${uuid}" ] && break
 done
 
 # create new empty subvolume
-btrfs subvolume create "$btrfs_path/$uuid" > /dev/null
+btrfs subvolume create "${image_path}/${uuid}" > /dev/null
 
 # copy (using reflink) all files in source dir to image dir
-find "$1" -mindepth 1 -maxdepth 1 -print0 | xargs -0 cp -rf --reflink=auto -t "$btrfs_path/$uuid" >/dev/null
+find "$1" -mindepth 1 -maxdepth 1 -print0 | xargs -0 cp -rf --reflink=auto -t "${image_path}/${uuid}" >/dev/null
 
 # save image meta data
-readlink -f "$1" > "$btrfs_path/$uuid"/img.source
+readlink -f "$1" > "${image_path}/${uuid}/img.source"
 
 # extract all tarballs over image directory
 shift
 for tarball in "$@"; do
     [ -r "$tarball" ] || break;
-    tar xaf "$tarball" -C "$btrfs_path/$uuid"
+    tar xaf "$tarball" -C "${image_path}/${uuid}"
 done
 
 printf "Created: %s\n" "$uuid"

@@ -125,8 +125,9 @@ shocker_pre_create() {
 
   # create hierarchy id for container
   #shellcheck disable=SC2094
-  echo "$(cat "${target_path}/.tree")" "$(date +%s)" "$cntid" "$@" \
+  echo "$(cat "${target_path}/.tree" 2>/dev/null)" "$(date +%s)" "$cntid" "$@" \
       | md5sum | cut -f1 -d' ' >> "${target_path}/.tree"
+  echo "$1" > "${target_path}/.parent.id"
 
   shocker_create_cgroups "$cntid"
 
@@ -140,7 +141,9 @@ shocker_execute() {
     ip netns exec netns_"$cntid" \
     unshare -fmuip --mount-proc \
     chroot "${container_path}/${cntid}" \
-    /bin/sh -c "source /root/init; $*"
+    /usr/bin/env -i /bin/sh -c "source /root/init; \
+      export PS1=\"\x1b[1m${cntid} \w\x1b[0m\n\$ \"; \
+      $*"
 }
 
 shocker_stop() {
