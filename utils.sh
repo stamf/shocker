@@ -140,10 +140,10 @@ get_gateway () {
 get_outbound_dev() {
   #shellcheck disable=SC1090
   . "$dirname"/settings.conf 2>/dev/null
-  echo "${OUTBOUND_DEV:-auto}"
   if [ "$OUTBOUND_DEV" == "auto" ]; then
     OUTBOUND_DEV=$(ip route | awk '/^default via/ { print $5 }')
   fi
+  echo "$OUTBOUND_DEV"
 }
 
 get_bridge_dev () {
