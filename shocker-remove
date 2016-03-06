@@ -1,6 +1,4 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
-cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
 # source helper utils
@@ -33,9 +31,17 @@ fi
 
 ctype=$(get_type "$1")
 if [ "$ctype" != "container" ]; then
-    printf "'%s' is not a container\n" "$1" >&2
-    exit 1
+  printf "'%s' is not a container\n" "$1" >&2
+  exit 1
+fi
+
+state=$(get_state "$1")
+if [ "$state" == "running" ]; then
+  printf "Container '%s' is currently in use\n" "$1" >&2
+  exit 1
 fi
 
 btrfs subvolume delete "${container_path}/$1" > /dev/null
-cgdelete -g "${cgroups}:/$1" > /dev/null 2>&1
+cgdelete -g "${cgroups}:$1" > /dev/null 2>&1
+
+printf "Removed: %s\n" "$1" >&2
