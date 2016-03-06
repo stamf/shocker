@@ -1,6 +1,4 @@
 #!/bin/sh
-btrfs_path='/var/shocker'
-cgroups='cpu,cpuacct,memory'
 dirname=$(dirname "$(readlink -f "$0")")
 
 # source helper utils
@@ -63,8 +61,3 @@ esac
 sort -nr "/sys/fs/cgroup/cpuacct/$1/tasks" | while read -r proc; do
   kill -s "$sig" -- "$proc" 2>/dev/null
 done
-
-findmnt -r | grep "^${container_path}/$1/" | cut -f1 -d' ' | xargs umount
-ip link del dev veth0_"$1"
-ip netns del netns_"$1"
-cgdelete -g "$cgroups:/$1" >/dev/null 2>&1 /dev/null
