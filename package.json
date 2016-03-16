@@ -1,0 +1,22 @@
+{
+  "name": "shocker",
+  "version": "1.0.0",
+  "description": "Docker implemented in shell",
+  "bin": {
+    "shocker": "./shocker"
+  },
+  "scripts": {
+  },
+  "repository": "stamf/shocker",
+  "keywords": [
+    "docker",
+    "bocker",
+    "shell",
+    "container"
+  ],
+  "license": "MIT",
+  "dependencies": {
+  },
+  "devDependencies": {
+  }
+}
