@@ -4,9 +4,9 @@ Docker implemented in shell. Forked from
 
 - [Features](#features)
 - [Usage](#usage)
-- [Installation](#installation)
 - [Prerequisites](#prerequisites)
 - [FAQ](#faq)
+- [Installation](#installation)
 - [License](#license)
 
 ## Features
@@ -46,11 +46,6 @@ Docker implemented in shell. Forked from
     $ shocker stop beep                  # stop a running container
     $ shocker remove beep                # remove a stopped container
     $ shocker image remove img_1235      # remove a local image
-```
-
-## Installation
-```sh
-$ curl -sL https://github.com/stamf/shocker/archive/master.tar.gz | tar xz
 ```
 
 ## Prerequisites
@@ -125,6 +120,11 @@ This means cgroups are not yet mounted on your system. Use `cgconfig` to start
 them up (example below uses System V init):
 ```sh
 $ sudo service cgconfig start
+```
+
+## Installation
+```sh
+$ npm install -g shocker
 ```
 
 ## License
