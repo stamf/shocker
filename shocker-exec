@@ -35,7 +35,10 @@ shocker_exec() {
 
   cid="$(fn_mine "$1")"
   shocker_log_command "$1" "${@:2}"
-  nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
+  nsenter -t "$cid" -m -u -i -n -p \
+    chroot "$btrfs_path/containers/$1" \
+    /usr/bin/env -i /bin/sh -c "export PS1=\"\x1b[1m${1} \w\x1b[0m # \"; \
+    ${*:2}"
 }
 
 cstate=$(get_state "$1")

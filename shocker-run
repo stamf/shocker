@@ -142,7 +142,7 @@ shocker_execute() {
     unshare -fmuip --mount-proc \
     chroot "${container_path}/${cntid}" \
     /usr/bin/env -i /bin/sh -c "source /root/init; \
-      export PS1=\"\x1b[1m${cntid} \w\x1b[0m\n# \"; \
+      export PS1=\"\x1b[1m${cntid} \w\x1b[0m # \"; \
       $*"
 }
 
